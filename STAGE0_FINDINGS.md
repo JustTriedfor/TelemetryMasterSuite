@@ -1,0 +1,64 @@
+# Stage 0 findings: the friend's dashboard (inspected, nothing executed)
+
+File: `TrackThirtyTwo Race Control Dashboard Ultrawide.simhubdash` (10.4 MB). Extracted into `friend_extracted/` and only read as data. No script inside it was run, and nothing in it was copied into our work.
+
+## 1. Container format
+`.simhubdash` is a plain **ZIP**. Inside, one folder holds:
+
+| Item | What it is |
+|---|---|
+| `<Name>.djson` | The dashboard: a JSON document (1.1 MB for the main one). |
+| `<Name>.djson.metadata` | JSON: title, author, width/height, screen roles, `SimHubVersion` ("9.12.9"), `DashboardVersion`. |
+| `<Name>.djson.ressources` (sic) | A nested ZIP of the embedded images. Names match `Images[]` in the djson (name, extension, size, MD5). |
+| `<Name>.djson.png`, `.00.png`... | Preview thumbnails. |
+| `JavascriptExtensions/*.js` | Shared JS files whose functions every formula in the dash can call. |
+| `_SHFonts/*.ttf` | Embedded fonts. |
+| Extra `*.djson` (+ `.ressources`) | Sub-dashboards, loaded into a parent through `WidgetItem` (`FileName`). |
+
+## 2. `.djson` structure
+- Top level: `Version`, `Id`, `BaseWidth`/`BaseHeight` (2580x1080 here), `BackgroundColor`, `Screens[]`, `Images[]`, `Metadata`, `GridSize`, `UseStrictJSIsolation` (false), and others.
+- `Screens[]`: each has `Name`, `ScreenId` (GUID), `InGameScreen`/`IdleScreen`/`PitScreen` flags, `ScreenEnabledExpression`, `Items[]`. This dash has 6 screens (idle, three control views, "Zones", a plugin notice). Metadata lists which indexes are in-game, idle or pit.
+- Items are typed objects (`$type`). Counts in the main file: TextItem 234, GroupItem 58, Layer 54, RectangleItem 53, GradientItem 37, ImageItem 36, LinearGaugeItem 12, WidgetItem 9, ChartItem 9, EllipseItem 3, DialGaugeItem 1, GeneratedStaticMapItem 2, ImageFromFileItem 2.
+- Every item has `Left/Top/Width/Height/Visible/Name`, plus `Bindings`.
+- `Bindings`: `{ "<PropertyName>": { "Formula": { "Expression": "...", "JSExt": 1, "Interpreter": 1 }, "Mode": 2 } }`. All 1013 bindings use `Mode: 2` (formula). Bound targets include Text, TextColor, Visible, Left, Top, Color, Value, CurrentValue, Rotation, Opacity, Image, InitialScreenIndex.
+- Formula flavours seen: NCalc style such as `[Gear]` or `isnull([X], 248)` (559 formulas) and JavaScript (`JSExt: 1`, 1275 formulas).
+- `ChartItem` is a built-in scrolling line chart (`CurrentValue`, `PointsCount`, `Minimum/Maximum`, `LineColor`). Good for the 3 s traces. `LinearGaugeItem` and `DialGaugeItem` cover bars and arcs.
+- There is no vector/path item in the list, so the top-down car and the arcs will be built from rotated rectangles, ellipses, images and gradient items (or a pre-drawn image rotated through the `Rotation` binding).
+
+## 3. Findings that change the brief
+
+1. **JS dialect.** The official [SimHub wiki](https://github.com/SHWotever/SimHub/wiki/Javascript-Formula-Engine) says the engine is Jint, "full ECMAScript 5.1 compliant". But the friend's dash (SimHub 9.12.9) uses `let`, `const`, template literals, `?.`, `??`, `Array.isArray`, `padStart` in 1275 formulas and in every extension file, always with `"Interpreter": 1`. So either `Interpreter: 1` selects a newer engine than the wiki describes, or the wiki is out of date. I cannot tell which from the file. **I will keep everything ES5 (your rule, and it runs on either engine)** and list this in TO_VERIFY. If you later confirm modern syntax works on your SimHub, we could relax it, but ES5 costs us little.
+2. **Shared code does exist.** `JavascriptExtensions/*.js` functions are callable from every formula (the friend calls `dnr_lb(...)` from bindings). That solves "each formula is isolated" for functions. It does **not** solve shared state: the wiki says pooled engine instances mean sharing values through extensions is "not guaranteed", and `root` state is scoped per formula. So the physics library can be shared as code, but state (ring buffers, EMA, peak holds) is still per formula and would be duplicated. This strengthens the case for a plugin (Option C) for anything stateful.
+3. **Third-party dependency.** The friend's dash reads about 185 properties from a `DNRLEDs.*` plugin and uses `LovelyPlugin.*` and `PersistantTrackerPlugin.*`. None of those are in base SimHub. We will not use any of them.
+4. **Game identifiers** seen in `DataCorePlugin.CurrentGame`: `IRacing`, `AssettoCorsaCompetizione`, `AssettoCorsa` (also `AssettoCorsaEVO`, `LMU`, `F120xx`). The adapters key off these.
+5. **Verified access patterns** (from the friend's code, so they work on at least one machine):
+   - ACC: `$prop('GameRawData.Physics.tyreCoreTemperature')` returns a real array, indexed 0..3.
+   - iRacing: `$prop('GameRawData.Telemetry.LFtempCM')` (prefixes LF, RF, LR, RR).
+   - All sims: `DataCorePlugin.GameData.TyrePressure` + `FrontLeft|FrontRight|RearLeft|RearRight`, same pattern for `TyreTemperature`, `TyreWear`, `BrakeTemperature`.
+   - `TemperatureUnit` can be `Kelvin`, `Fahrenheit` or otherwise Celsius. `TyrePressureUnit` also exists.
+   - Bare names (`SpeedKmh`, `Throttle`, `Brake`, `Gear`, `Rpms`, `Fuel`, `BestLapTime`...) are accepted.
+
+## 4. What SimHub needs to import a dashboard we author
+Minimum: a ZIP with the `.simhubdash` extension containing `<Name>/<Name>.djson` and `<Name>.djson.metadata`. The `.ressources` nested ZIP is needed only if the dash embeds images (the `Images[]` entries must match it). `JavascriptExtensions/*.js` and `_SHFonts/*.ttf` are optional. This is inferred from this one file, not from official documentation. **Unverified:** whether SimHub rejects a hand-written `.djson` that omits fields it normally writes. The safest route is to start from a dashboard created in Dash Studio (an empty 1920x1080 one saved from your SimHub) and have the build script fill in its `Screens`. See TO_VERIFY.
+
+## 5. Not available yet
+- The SpaceXperiment screenshot was not attached to this conversation, so the visual reference is not available to me yet. The project at `%USERPROFILE%\rocketeer\SpaceXperiment` has the control panel; I can take colours and layout from its source if you point me to the right file.
+
+## 6. Performance options (decision needed before Stage 4)
+
+| | A: JS only | B: C# plugin only | C: hybrid |
+|---|---|---|---|
+| Shared state | No (per formula, duplicated) | Yes | Yes |
+| Compute cost | Same physics repeated in each formula, every frame | Once per `DataUpdate` | Once per `DataUpdate` |
+| Build needs | Nothing | VS 2022, SimHub SDK, .NET Framework target | Same as B |
+| Risk | Frame drops, drift between panels | Breaks on SimHub updates; all UI work in XAML/Dash anyway | Same plugin risk, plus a JS presentation layer |
+| Testability | Node | C# unit tests | Node for JS, C# tests mirroring the same cases |
+
+**Recommendation: C**, because finding 2 shows that stateful panels (traces, peak holds, event log, stint trends, best-lap comparison) cannot share state in JS. Items to check on your machine before Stage 4: SimHub version (this file was made with 9.12.9) and the .NET Framework version and plugin SDK that your SimHub install ships with (look in the SimHub install folder for `SimHub.Plugins.dll` and the `PluginSdk` demo). Measure cost with SimHub's built-in performance/CPU readout (Settings) while the dash runs, comparing with the dash hidden, and compare the number of JS formulas with and without the plugin.
+
+## 7. Proposed plan from here
+- Stage 2: `lib/physics.js` + tests (and mirrored C# later if you pick B or C).
+- Stage 3: HTML mock at 1920x1080 with a simulated trail-braking slide.
+- Stage 4: build the dash from the mock using the format above.
+
+Open choices for you are at the end of the chat message.

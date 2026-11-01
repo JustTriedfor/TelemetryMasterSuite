@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Telemetry Master Suite - dense layout v3</title>
+<link rel="stylesheet" href="v3.css">
+</head>
+<body>
+<div id="app">
+  <!-- header: corner phase + race context -->
+  <div id="head">
+    <div id="phase"></div>
+    <div id="race"></div>
+  </div>
+
+  <!-- COLUMN A: timing, with braking directly beneath -->
+  <div class="col" id="colA">
+    <section class="p" id="pLap" style="height:440px">
+      <h3><span>Lap timing</span><span class="sub" id="lapSub"></span></h3>
+      <div class="rowTop">
+        <div class="deltaBox"><span class="lab">DELTA VS BEST</span><span id="delta" class="dnum">+0.000</span><span class="lab">PRED <b id="pred">0:00.000</b> &nbsp; BEST <b id="best">0:00.000</b></span></div>
+        <canvas id="cDelta" width="360" height="82"></canvas>
+      </div>
+      <div class="secs" id="secs"></div>
+      <table id="laps" class="tbl"></table>
+      <canvas id="cBrake" width="578" height="140"></canvas>
+    </section>
+    <section class="p" id="pBrk" style="height:572px">
+      <h3><span>Braking analysis</span><span class="sub" id="brkSub"></span></h3>
+      <div class="topZ"><div class="mini" id="ovlCard"></div><div class="mini" id="absCard"></div><div class="zones" id="zones"></div></div>
+      <div class="stats4" id="brkStats"></div>
+      <div class="discs" id="discs"></div>
+      <div class="lockRow" id="lockRow"></div>
+    </section>
+  </div>
+
+  <!-- COLUMN B: car and slip, with tyres directly beneath -->
+  <div class="col" id="colB">
+    <section class="p" id="pSlip" style="height:500px">
+      <h3><span>Slip view</span><span class="sub" id="slipSub"></span></h3>
+      <div class="slipTop">
+        <div class="carBox"><canvas id="car" width="300" height="316"></canvas></div>
+        <div class="slipRight">
+          <div class="betaRow"><span id="beta" class="bnum">+0.0&deg;</span><div><div id="band" class="bword">GRIP</div><div class="lab">&beta; &gt; 0 : nose left of travel</div></div></div>
+          <canvas id="cSlip" width="372" height="226"></canvas>
+          <div class="legend"><i style="background:var(--beta)"></i>beta &deg;<i style="background:var(--brake)"></i>brake<i style="background:var(--thr)"></i>throttle<i style="background:var(--steer)"></i>steer<span class="dim">last 6 s</span></div>
+        </div>
+      </div>
+      <div class="balRow"><span class="lab" style="width:78px">BALANCE<br><b id="balTag" class="tagA"></b></span><canvas id="cBal" width="470" height="44"></canvas><span id="balWord" class="bwd">-</span></div>
+      <div class="gripRow" id="gripRow"></div>
+    </section>
+    <section class="p" id="pTyre" style="height:512px">
+      <h3><span>Tyres</span><span class="sub">core temp and pressure, last 20 s (same scroll as the pedals), tread, load, slip, travel</span></h3>
+      <div class="tyres" id="tyres"></div>
+    </section>
+  </div>
+
+  <!-- COLUMN C: each panel = graph on the left, one widget on the right -->
+  <div class="col" id="colC">
+    <section class="p" id="pIn" style="height:256px">
+      <h3><span>Driver inputs</span><span class="sub">rolling last 20 s, best lap overlaid at the same track position</span></h3>
+      <div class="inTop" id="inTop"></div>
+      <div class="split"><canvas id="cPed" width="316" height="112"></canvas><canvas id="cWheel" width="256" height="112"></canvas></div>
+      <div class="drvT" id="drv"></div>
+    </section>
+    <section class="p" id="pDyn" style="height:192px">
+      <h3><span>Dynamics</span><span class="sub">last 6 s, and load on each corner</span></h3>
+      <div class="ldg"><i style="background:var(--latg)"></i>lateral g (+ left)<i style="background:var(--longg)"></i>longitudinal g (+ accel)<i style="background:var(--yaw)"></i>yaw rate (lower trace)</div>
+      <div class="split"><canvas id="cDyn" width="316" height="140"></canvas><canvas id="cLoad" width="256" height="140"></canvas></div>
+    </section>
+    <section class="p" id="pSusp" style="height:222px">
+      <h3><span>Suspension and ride</span><span class="sub" id="suspSub"></span></h3>
+      <div class="split"><div class="suspL" id="susp"></div><canvas id="cAtt" width="256" height="188"></canvas></div>
+    </section>
+    <section class="p" id="pFuel" style="height:148px">
+      <h3><span>Fuel and strategy</span><span class="sub">can I finish the race on this fuel?</span></h3>
+      <div class="fuel"><div class="fL" id="fuelL"></div><canvas id="cFuel" width="340" height="104"></canvas></div>
+    </section>
+    <section class="p" id="pSys" style="height:170px">
+      <h3><span>Systems, events and track</span><span class="sub" id="mapSub"></span></h3>
+      <div class="split"><div class="sysL"><div id="sys"></div><div id="events"></div></div><canvas id="cMap" width="256" height="136"></canvas></div>
+    </section>
+  </div>
+
+  <div id="ctl"><button data-sim="acc" class="on">ACC</button><button data-sim="ac">AC</button><button data-sim="iracing">iRacing</button><button data-spd="1" class="on">x1</button><button data-spd="4">x4</button><button id="pause">Pause</button></div>
+</div>
+<script src="../../lib/physics.js"></script>
+<script src="../sim.js"></script>
+<script src="v3.js"></script>
+<script src="geom.js"></script>
+</body>
+</html>

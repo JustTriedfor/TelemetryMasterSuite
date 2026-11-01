@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Telemetry Master Suite - glance layout v2</title>
+<link rel="stylesheet" href="v2.css">
+</head>
+<body>
+<div id="app">
+  <!-- tier 1: phase bar across the top -->
+  <div id="phase"></div>
+
+  <!-- left: timing, with braking directly beneath it -->
+  <div class="colA">
+  <section class="zone" id="zLap">
+    <h3>LAP</h3>
+    <div class="deltaRow"><span id="delta" class="huge">+0.000</span><span id="deltaArrow" class="arrow"></span></div>
+    <div class="two"><div><span class="lab">PREDICTED</span><span class="med" id="pred">0:00.000</span></div><div><span class="lab">BEST</span><span class="med" id="best">0:00.000</span></div></div>
+    <div class="secs" id="secs"></div>
+    <table id="laps"></table>
+  </section>
+  <section class="zone" id="zBrk">
+    <h3>BRAKING <span class="tag" id="brkTag"></span></h3>
+    <div class="two big2">
+      <div><span class="lab">PEAK BRAKE</span><span class="num" id="bpk">0</span><span class="vs" id="bpkv"></span></div>
+      <div><span class="lab">TRAIL BRAKE</span><span class="num" id="btr">0</span><span class="vs" id="btrv"></span></div>
+    </div>
+    <div class="discs" id="discs"></div>
+    <div class="brkFoot"><span id="fade" class="word"></span><span class="chip" id="absC">ABS</span><span class="lab" style="margin-left:auto">BIAS</span><span class="med" id="bias">0</span></div>
+  </section>
+
+  </div>
+  <!-- centre: the car, with beta and the tyre cards around it -->
+  <section class="zone" id="zCar">
+    <div id="betaBlock">
+      <div class="betaMain"><span id="beta" class="giant">+0.0&deg;</span><div><div id="band" class="bandWord">GRIP</div><div class="conv">&beta; &gt; 0 : nose left of travel</div></div></div>
+    </div>
+    <canvas id="car" width="800" height="560"></canvas>
+    <div id="tyres"></div>
+    <div id="balBlock">
+      <div class="balTop"><span class="lab">BALANCE <span class="tag" id="balTag"></span></span><span id="balWord" class="word big">-</span></div>
+      <div class="balSeg" id="balSeg"></div>
+      <div class="gs"><span class="lab">LAT G</span><span class="med" id="latg">0</span><span class="lab">LONG G</span><span class="med" id="longg">0</span><span class="lab">LOAD CTR</span><span class="med" id="lc" style="font-size:18px">n/a</span></div>
+    </div>
+  </section>
+
+  <!-- right: car state, fuel, race, events -->
+  <div class="colC">
+  <section class="zone" id="zDrive">
+    <div class="gearRow"><span id="gear" class="gear">N</span>
+      <div class="col"><span id="speed" class="huge2">0</span><span class="lab">KM/H</span><span class="med" id="rpm">0</span><span class="lab">RPM</span></div>
+      <div class="col" style="margin-left:auto;gap:6px"><span class="chip" id="tcC">TC</span><span class="chip" id="abs2C">ABS</span></div></div>
+  </section>
+  <section class="zone" id="zFuel">
+    <h3>FUEL</h3>
+    <div class="fuelRow"><div><span class="lab">LAPS LEFT</span><span class="huge2" id="fLaps">0</span></div><div class="fcol"><div><span class="lab">FUEL</span><span class="med" id="fNow">0</span></div><div><span class="lab">PER LAP</span><span class="med" id="fLap">0</span></div><div><span class="lab">ADD FOR <span id="fTgt">25</span></span><span class="med" id="fAdd">0</span></div><div><span class="lab">PIT BY</span><span class="med" id="fWin">n/a</span></div></div></div>
+  </section>
+  <section class="zone" id="zRace">
+    <h3>RACE</h3>
+    <div class="raceRow"><span class="huge2" id="pos">P4</span><div class="fcol"><div><span class="lab">AHEAD</span><span class="med" id="gA">0</span></div><div><span class="lab">BEHIND</span><span class="med" id="gB">0</span></div></div><div class="fcol"><span class="chip on g" id="flag">GREEN</span><div><span class="lab">LEFT</span><span class="med" id="tleft">0</span></div></div></div>
+  </section>
+  <section class="zone" id="zEvt">
+    <h3>EVENTS</h3>
+    <div id="events"></div>
+    <div class="drv" id="drv"></div>
+  </section>
+
+  </div>
+  <!-- tier 3: quiet reference strip -->
+  <section id="ref"></section>
+  <div id="ctl"><button data-sim="acc" class="on">ACC</button><button data-sim="ac">AC</button><button data-sim="iracing">iRacing</button><button data-spd="1" class="on">x1</button><button data-spd="4">x4</button><button id="pause">Pause</button><button id="glance">GLANCE (G)</button></div>
+  <div id="cover"><div id="coverTxt"></div></div>
+</div>
+<script src="../../lib/physics.js"></script>
+<script src="../sim.js"></script>
+<script src="v2.js"></script>
+</body>
+</html>

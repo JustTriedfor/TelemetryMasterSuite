@@ -1,0 +1,126 @@
+/* Glance layout v2. Three tiers of size: glance (huge), quick (big/med), parked (small).
+   Graphite + signal yellow, Bahnschrift. State is always colour AND a word/arrow, never colour alone. */
+:root {
+  --bg: #09090b; --panel: #131316; --line: #26262c; --text: #d8d8de; --dim: #8a8a95;
+  --y: #f3ff3d; --amber: #ff8a1f; --green: #38e08c; --red: #ff3d5a; --purple: #b66dff; --cold: #5db3ff; --white: #fbfbf6;
+  --f: "Bahnschrift SemiCondensed", "Bahnschrift", "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+body { font-family: var(--f); color: var(--text); font-size: 14px; font-variant-numeric: tabular-nums; }
+#app { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; background: var(--bg);
+  display: grid; padding: 10px 12px; gap: 8px; grid-template-columns: 540px 800px 540px; grid-template-rows: 74px 874px 96px; }
+.colA, .colC { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.na { color: var(--dim) !important; font-style: italic; }
+.zone { background: var(--panel); border-left: 4px solid #2b2b33; padding: 6px 12px 8px; position: relative; overflow: hidden;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%); min-height: 0; }
+h3 { margin: 0 0 4px; font-size: 15px; font-weight: 700; color: #c4c4cd; display: flex; gap: 10px; align-items: baseline; }
+h3::before { content: ""; width: 9px; height: 13px; background: var(--y); transform: skewX(-22deg); display: inline-block; align-self: center; }
+.tag { font-size: 13px; font-weight: 600; color: var(--amber); }
+.lab { display: block; font-size: 13px; font-weight: 700; color: var(--dim); letter-spacing: .02em; }
+.word { font-weight: 700; letter-spacing: .04em; }
+.word.big { font-size: 34px; }
+.huge { font-size: 118px; line-height: 108px; font-weight: 700; color: var(--white); }
+.huge2 { display: block; font-size: 76px; line-height: 72px; font-weight: 700; color: var(--white); }
+.giant { font-size: 150px; line-height: 130px; font-weight: 700; color: var(--white); }
+.med { display: block; font-size: 30px; line-height: 32px; font-weight: 700; color: var(--white); }
+.num { display: block; font-size: 64px; line-height: 64px; font-weight: 700; color: var(--white); }
+.vs { display: block; font-size: 20px; font-weight: 700; color: var(--dim); }
+.arrow { font-size: 64px; font-weight: 700; margin-left: 10px; }
+.g { color: var(--green) !important; } .a { color: var(--amber) !important; } .r { color: var(--red) !important; }
+.c { color: var(--cold) !important; } .pu { color: var(--purple) !important; } .y { color: var(--y) !important; }
+
+/* placement */
+#phase { grid-column: 1 / 4; grid-row: 1; display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+.colA { grid-column: 1; grid-row: 2; } #zCar { grid-column: 2; grid-row: 2; padding: 0; } .colC { grid-column: 3; grid-row: 2; }
+#zLap { height: 440px; } #zBrk { height: 426px; }
+#zDrive { height: 230px; } #zFuel { height: 190px; } #zRace { height: 160px; } #zEvt { height: 270px; }
+#ref { grid-column: 1 / 4; grid-row: 3; display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px; }
+
+/* phase bar */
+.ph { transform: skewX(-18deg); background: #16161a; color: #565660; font-size: 36px; font-weight: 700; letter-spacing: .05em; display: flex; align-items: center; justify-content: center; }
+.ph span { display: block; transform: skewX(18deg); }
+.ph.on { color: #09090b; background: var(--y); }
+.ph.on.TRAIL { background: var(--amber); }
+.ph.on.ROTATION { background: var(--red); color: #fff; }
+.ph.on.POWER { background: var(--green); }
+
+/* lap zone */
+#zLap { padding-top: 4px; }
+.deltaRow { display: flex; align-items: center; margin: 2px 0 2px; }
+.two { display: flex; gap: 24px; }
+.two > div { flex: 1; }
+.two .med { font-size: 28px; }
+.secs { display: flex; gap: 8px; margin: 12px 0 10px; }
+.sec { flex: 1; background: #1b1b20; padding: 4px 8px; }
+.sec b { display: block; font-size: 13px; color: var(--dim); }
+.sec span { font-size: 36px; font-weight: 700; line-height: 32px; }
+#laps { width: 100%; border-collapse: collapse; font-size: 22px; }
+#laps td { padding: 3px 4px; text-align: right; color: var(--white); font-weight: 600; }
+#laps td:first-child { text-align: left; color: var(--dim); }
+
+/* braking zone */
+.big2 { margin-top: 2px; }
+.big2 .num { margin-top: 2px; }
+.discs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 8px; }
+.disc { background: #1b1b20; padding: 6px 10px; position: relative; }
+.disc b { font-size: 13px; color: var(--dim); }
+.disc span { display: block; font-size: 52px; line-height: 50px; font-weight: 700; }
+.disc i { position: absolute; right: 8px; top: 8px; font-style: normal; font-size: 20px; font-weight: 700; }
+.disc.lock { outline: 3px solid var(--red); }
+.brkFoot { display: flex; align-items: center; gap: 14px; }
+.brkFoot .word { font-size: 24px; }
+.chip { display: inline-block; padding: 2px 12px; background: #1f1f25; color: #6f6f79; font-weight: 700; font-size: 18px; transform: skewX(-14deg); }
+.chip.on { color: #09090b !important; } .chip.on.a { background: var(--amber); } .chip.on.g { background: var(--green); } .chip.on.r { background: var(--red); }
+
+/* car zone */
+#zCar { background: #101013; }
+#betaBlock { position: absolute; left: 0; right: 0; top: 4px; display: flex; justify-content: center; }
+.betaMain { display: flex; align-items: center; gap: 22px; }
+.bandWord { font-size: 46px; font-weight: 700; letter-spacing: .06em; line-height: 46px; }
+.conv { font-size: 14px; color: var(--dim); margin-top: 4px; }
+#car { position: absolute; left: 0; top: 150px; }
+#tyres .tc { position: absolute; width: 196px; background: #1b1b20; padding: 6px 10px 6px; border-left: 4px solid #3a3a42; }
+.tc h4 { margin: 0; font-size: 15px; color: var(--dim); display: flex; justify-content: space-between; }
+.tc .t { font-size: 60px; line-height: 56px; font-weight: 700; }
+.tc .t small { font-size: 28px; }
+.tc .r2 { display: flex; justify-content: space-between; font-size: 22px; font-weight: 700; color: var(--white); margin-top: 2px; }
+.tc .r2 em { font-style: normal; font-size: 18px; }
+.tc .r3 { font-size: 14px; color: var(--dim); margin-top: 2px; display: flex; justify-content: space-between; }
+.tc.lock { border-left-color: var(--red); }
+#balBlock { position: absolute; left: 20px; right: 20px; bottom: 10px; }
+.balTop { display: flex; justify-content: space-between; align-items: baseline; }
+.balSeg { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; height: 26px; margin: 4px 0 6px; }
+.balSeg i { background: #1f1f25; transform: skewX(-18deg); }
+.gs { display: flex; gap: 14px; align-items: baseline; }
+.gs .med { display: inline; font-size: 24px; }
+
+/* right column */
+.gearRow { display: flex; align-items: center; gap: 28px; height: 100%; }
+.gear { font-size: 190px; line-height: 170px; font-weight: 700; color: var(--y); min-width: 140px; text-align: center; }
+.col { display: flex; flex-direction: column; }
+.fuelRow, .raceRow { display: flex; gap: 22px; align-items: center; }
+.fcol { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.fcol > div { display: flex; justify-content: space-between; align-items: baseline; }
+.fcol .lab { display: inline; } .fcol .med { display: inline; font-size: 26px; }
+#events { font-size: 24px; line-height: 34px; font-weight: 700; }
+#events div { display: flex; gap: 12px; white-space: nowrap; }
+#events small { color: var(--dim); font-size: 16px; font-weight: 600; width: 74px; }
+.drv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
+.drv div { background: #1b1b20; padding: 4px 8px; }
+.drv b { display: block; font-size: 13px; color: var(--dim); }
+.drv span { font-size: 30px; font-weight: 700; line-height: 32px; }
+
+/* reference strip: deliberately quiet */
+#ref .cell { background: #0f0f12; padding: 6px 8px; }
+#ref b { display: block; font-size: 12px; color: #6a6a75; font-weight: 600; }
+#ref span { font-size: 22px; color: #a6a6b0; font-weight: 600; }
+
+/* mock-only */
+#ctl { position: absolute; right: 12px; bottom: 112px; display: flex; gap: 4px; opacity: .55; z-index: 5; }
+#ctl button { background: #1d1d23; color: var(--text); border: 0; padding: 4px 9px; font: 700 12px var(--f); cursor: pointer; }
+#ctl button.on { background: var(--y); color: #09090b; }
+#cover { display: none; position: absolute; inset: 0; background: #000; z-index: 20; align-items: center; justify-content: center; }
+#cover.on { display: flex; }
+#coverTxt { font-size: 40px; color: #666; }
+#zCar { border-left: 0; }

@@ -1,0 +1,48 @@
+# Stage 3 review: layout mock
+
+Open `mock/index.html` through a local server (`python -m http.server 8765` in the project folder, then http://localhost:8765/mock/index.html). Query options: `?t=25.5` jump to that second of the lap, `&pause=1`, `&mode=acc|ac|iracing`, `&cal=1` (pre-train the iRacing estimator). Buttons in the dashed box top right switch sim, speed and pause (those buttons are mock-only). Screenshots at true size are in `mock/shots/`.
+
+The mock runs the real `lib/physics.js` on a simulated 60 s lap: a front-left lock-up under heavy braking (about 17.5 s), trail braking into a left corner with a slide on even laps (about 25 s, beta peaks near 11 degrees), and a lighter right-hand corner. The simulated car is invented; it shows layout and the logic, not real car behaviour.
+
+## Fits at 1920x1080
+All 13 panels, 12 KPI tiles and the phase bar are on one screen with no scrolling. An automated check found no text below 11 px, no clipped text and no panel overflow (after the fixes in this stage).
+
+## Trade-offs and decisions for you
+1. **Corner panels are dense.** Each shows 8 rows in about 215 px. They are legible, but the rows are tight. If you want more air, drop Travel or Load from the corner panels (both also appear elsewhere) and I would gain about 50 px for a larger tread bar.
+2. **Tyre stint trends** use two wide charts. Four lines per chart are hard to tell apart where they overlap. Option: show only the hottest and coolest tyre, or one chart with FL/FR and one with RL/RR.
+3. **Damper histograms** need many minutes of data to look meaningful. They start as a single column. Option: swap for a "last 10 s" scatter of travel against velocity.
+4. **Slip view has spare room** between the car ring and the 3 s trace (about 60 px). Candidate use: a larger trace, or moving the load-centre readout into the car view.
+5. **Spare cell (row 4, column 6)** went to the pedal and steering overlay as you suggested. It fits well.
+6. **Beta arrow shows the true angle**, so at 6 degrees the arrow is hard to tell from the nose arrow. The arc and the number carry the signal. Option: a "x2 angle" toggle for visibility. I did not add it so the picture stays honest.
+7. **Load centre dot is hollow when estimated** (iRacing), filled when from real tyre load. Same idea for the balance meter tag.
+
+## Behaviour per sim (switch in the mock)
+- **ACC:** everything populated, real slip angle drives balance and grip.
+- **AC:** gaps n/a, grip is an estimate from combined slip, the friction-circle dot is n/a ("no ratio"), balance tagged estimated.
+- **iRacing:** tyre load, slip, grip, wheel speed, camber, boost n/a. Load centre and balance are estimated (hollow dot, "estimated" tags). Balance shows "calibrating" until the learner has data; with data it reads, tagged "borrowed band" if the speed band was never calibrated directly. Lock-up chips cannot fire (ABS only).
+
+## Findings from this stage
+- The estimated balance originally never calibrated for a speed band that is only driven in corners (no low-g samples there). It now borrows the nearest calibrated band (within two bands) and flags it. Added a test. This is a real limitation: accuracy in that band depends on how similar the neighbouring band is.
+- Grip utilization reads very high for the first minutes of a session or after a car change because it is relative to the best seen so far (by design). The mock pre-seeds the peaks; in SimHub the first laps will show near-100% bars. Consider showing "learning" for the first N seconds.
+- The simulated data is not real telemetry. Nothing in the mock tells you whether the ACC `LocalVelocity` axes or any sign convention is right; see TO_VERIFY.md.
+
+## Not done in this stage
+- No Dash Studio dashboard yet (Stage 4). Waiting on your empty 1920x1080 template, and on your decision about the grip "learning" display and the trade-offs above.
+- The mock draws with canvas and HTML, which SimHub does not have. Stage 4 must rebuild each element from SimHub item types (text, rectangle, gradient, linear gauge, chart, image with rotation). The top-down car with rotating arrows and arcs, the histograms, the friction circle and the g-g plot are the hard ones; expect to approximate them with rotated images/rectangles and built-in charts.
+
+## Theme change: "Race engineer" (default) vs classic
+The first mock looked too much like the SpaceXperiment panel (navy, hairline boxes, small spaced capitals, cyan). The default theme is now `race` (see `mock/theme-race.css`); add `?theme=classic` to see the old one.
+
+| | Classic | Race (default) |
+|---|---|---|
+| Base | deep navy, thin blue borders | graphite/carbon black, no borders, bold left edge |
+| Accent | cyan | hi-vis signal yellow, used sparingly (headers, beta, active phase) |
+| Status colours | green / amber / red | mint / orange / hot red; purple kept for session-best sectors |
+| Type | Segoe UI + Consolas, tiny tracked caps | Bahnschrift SemiCondensed (DIN-style racing face), bold, no tracking |
+| Shape | rounded rectangles | angled top-right corner, slanted bars and chips, chunky italic phase bar |
+| Bars | cyan fill | neutral grey so only status colours pop |
+
+Cost in SimHub (Stage 4): Dash Studio has no clip-path, skew or hatch fill. Plan: angled corners and slanted segments become small pre-rendered PNG shapes (tinted per state through a colour binding); the diagonal hatch background becomes one background image. Bahnschrift is a Windows system font; the reference dash embeds its fonts, so I would embed or verify it (TO_VERIFY).
+
+## Empty template received
+`test.simhubdash` is a zip of `test/test.djson` (1280x720, one empty screen, `Items: []`), a `.metadata` (Width/Height 1280x720), a preview PNG, `.carclasses` and a `JavascriptExtensions/sample.js`. For Stage 4 I set `BaseWidth/BaseHeight` and the metadata to 1920x1080 and fill `Screens`. That the changed template imports cleanly is unverified (TO_VERIFY).

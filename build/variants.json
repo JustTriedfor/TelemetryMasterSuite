@@ -1,0 +1,23 @@
+[
+ {
+  "name": "TelemetryMasterSuite",
+  "items": 621,
+  "images": [
+   "car_top",
+   "car_side_pivot",
+   "car_rear_pivot",
+   "wheel_moza",
+   "arrow_nose",
+   "arrow_travel"
+  ],
+  "ext": true,
+  "what": "the full dash: bindings and extension scripts"
+ },
+ {
+  "name": "TMSProbe",
+  "items": 126,
+  "images": [],
+  "ext": false,
+  "what": "probe: raw property values, types and min/max for the unverified signs and units"
+ }
+]

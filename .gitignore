@@ -1,0 +1,34 @@
+# dependencies
+node_modules/
+
+# third-party SimHub dashboards used only as a local format reference (not mine, not for the repo)
+friend_extracted/
+ref_extracted/
+tools/friend_props.txt
+tools/main_props.json
+tools/analyze_images.py
+tools/missing_keys.js
+tools/numeric_types.js
+
+# raw source images supplied by the user (patent sheet, wheel photo); the cut-outs in dash/assets and mock/assets are kept
+mock/assets/car_sheet.webp
+mock/assets/wheel_src.webp
+mock/assets/contact_sheet.png
+mock/assets/wheel_check.png
+
+# one-off patch scripts and backups from the iterative build (they carry absolute local paths and are replaced by git history)
+tools/patch_*.js
+tools/*.bak*
+tools/acc_block.txt
+
+# build output: only the two finished packages are kept
+dash/out/*
+!dash/out/*.simhubdash
+
+# screenshots of earlier design iterations (the one the packager needs is kept)
+mock/shots/*
+!mock/shots/v3_acc_slide.png
+
+# local tooling
+.claude/
+*.log
