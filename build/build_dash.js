@@ -130,15 +130,15 @@ G.forEach(function (e) {
   }
 })();
 (function laps() {
-  var c = byId.laps, cols = [['LAP', 0, 50], ['TIME', 50, 94], ['VS BEST', 150, 87]], k, y;
+  var c = byId.laps, cols = [['LAP', 0, 50], ['TIME', 50, 94], ['VS BEST', 150, 87], ['GAP TO SESSION BEST  (bar = seconds slower, purple = the best lap)', 245, 330]], k, y;
   cols.forEach(function (cl) { label(c.x + cl[1], c.y, cl[2], 15, cl[0], { fs: 11, fw: 'SemiBold', color: C.dim }); });
   for (k = 0; k < 5; k++) {
     y = c.y + 17 + k * 20;
     livetext(c.x, y, 50, 19, { fs: 14, fw: 'SemiBold', color: C.dim }, 'hlLap', k);
     livetext(c.x + 50, y, 100, 19, { fs: 15, fw: 'Bold', color: C.white }, 'hlTime', k, 'hlColor');
     livetext(c.x + 150, y, 87, 19, { fs: 15, fw: 'Bold', color: C.white }, 'hlDelta', k, 'hlColor');
+    var gb = add(I.rect(c.x + 245, y + 5, 3, 10, C.dim, 'gapbar')); I.bind(gb, 'Width', tmsx('hlBar', k)); B(gb, 'BackgroundColor', 'hlColor', k); report.live++;
   }
-  label(c.x + 250, c.y + 2, 320, 14, 'last five laps, newest first; purple = session best', { fs: 11, color: C.dim });
 })();
 (function brk() {
   var c = byId.brkStats, defs = [['PEAK BRAKE', 'peakBrake'], ['TRAIL BRAKE', 'trailTime'], ['PEAK DECEL', 'peakDecel'], ['BRAKE BIAS', 'bias']], k, x, w = (c.w - 18) / 4;

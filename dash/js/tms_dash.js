@@ -193,8 +193,8 @@ function tms(key, root, i) {
     case 'predLap': v = tms_secs(tms_gd('BestLapTime')); x = tms_delta(); return (v === null || v <= 0 || x === null) ? '--:--.---' : tms_fmtTime(v + x);
     case 'lapNo': return tms_n(tms_gd('CurrentLap'));
     case 'sector': v = tms_secVal(root, i); return v === null ? '--' : tms_fmtSec(v.t);
-    case 'sectorColor': v = tms_secVal(root, i); if (v === null || v.k === 'prev') { return TMS_COL.dim; } x = tms_secs(i === 0 ? tms_gd('Sector1BestTime') : (i === 1 ? tms_gd('Sector2BestTime') : tms_gd('Sector3BestLapTime'))); return (v.k === 'cur' && x !== null && x > 0 && v.t <= x + 0.0005) ? TMS_COL.best : TMS_COL.white;
-    case 'sectorBest': t = tms_secs(i === 0 ? tms_gd('Sector1BestTime') : (i === 1 ? tms_gd('Sector2BestTime') : tms_gd('Sector3BestLapTime'))); return (t === null || t <= 0) ? '--' : 'best ' + tms_fmtSec(t);
+    case 'sectorColor': v = tms_secVal(root, i); if (v === null || v.k === 'prev') { return TMS_COL.dim; } x = tms_secBest(root, i); return (v.k === 'cur' && x !== null && v.t <= x + 0.0005) ? TMS_COL.best : TMS_COL.white;
+    case 'sectorBest': t = tms_secBest(root, i); return t === null ? '--' : 'best ' + tms_fmtSec(t);
     // fuel
     case 'fuel': return tms_n(tms_gd('Fuel'));
     case 'fuelText': v = tms_n(tms_gd('Fuel')); return v === null ? 'n/a' : v.toFixed(1) + ' L';
@@ -266,38 +266,46 @@ function tms_zrows(s) {
 function tms_evrows(s) { var l = SHP.eventList(s.st), out = [], k; for (k = l.length - 1; k >= 0 && out.length < 6; k--) { out.push(l[k]); } return out; }
 var TMS_EVNAME = { SLIDE: 'SLIDE', ABS: 'ABS active', TC: 'TC active', OFFTRACK: 'OFF TRACK' };
 function tms_evText(e) { return e.type.indexOf('LOCKUP') === 0 ? 'LOCK-UP ' + e.detail : (TMS_EVNAME[e.type] || e.type); }
-// Sector times of the current lap. The game's own Sector1Time/Sector2Time are missing in AC (probe), so they are timed here from the sector index.
+// Sector times of the current lap, timed here from the sector index because the game's Sector2Time / Sector3LastLapTime are missing in AC.
+// The index is not assumed to start at 0 (SimHub's AC value counts from 1): a sector is complete when the index goes up by one, and the number of
+// the sector being run is counted from the lap line, so only increases matter. A decrease (the index wrapping at the lap line) is ignored.
 function tms_sec(root) {
-  var s = root.sc, idx = tms_n(tms_gd('CurrentSectorIndex')), lap = tms_n(tms_gd('CompletedLaps')), clt = tms_secs(tms_gd('CurrentLapTime')), lst = tms_secs(tms_gd('LastLapTime')), ls, cs;
+  var s = root.sc, idx = tms_n(tms_gd('CurrentSectorIndex')), lap = tms_n(tms_gd('CompletedLaps')), clt = tms_secs(tms_gd('CurrentLapTime')), lst = tms_secs(tms_gd('LastLapTime')), ls, k;
   if (idx === null) { idx = tms_n($prop('DataCorePlugin.GameRawData.Graphics.CurrentSectorIndex')); }
-  if (!s) { s = root.sc = { cur: [null, null, null], prev: [null, null, null], idx: null, lap: lap, start: null, ls: null, armed: false }; }
+  if (!s) { s = root.sc = { cur: [null, null, null], prev: [null, null, null], best: [null, null, null], n: null, last: null, lap: lap, start: null, ls: null }; }
   if (clt === null || idx === null) { return s; }
-  if (lap !== s.lap) {          // lap line: close the last sector from the lap time, keep the finished lap, wait for the new lap's first sector
-    if (s.cur[0] !== null && s.cur[1] !== null && s.cur[2] === null && lst !== null && lst > 0) { s.cur[2] = lst - s.cur[0] - s.cur[1]; }
-    s.prev = s.cur; s.cur = [null, null, null]; s.lap = lap; s.idx = null; s.start = null; s.armed = true;
-  }
-  cs = tms_cl(Math.round(idx), 0, 2);
-  if (s.idx === null) {
-    if (s.armed) { if (cs === 0) { s.idx = 0; s.start = 0; s.armed = false; } } else { s.idx = cs; s.start = cs === 0 ? 0 : null; }
+  if (s.last === null) { s.last = idx; if (clt < 2) { s.n = 0; s.start = 0; } return s; }      // first look: at the very start of a lap the numbering is known
+  if (lap !== s.lap) {            // lap line: close the last sector from the lap time, keep the finished lap, start counting again
+    if (s.n === 2 && s.cur[0] !== null && s.cur[1] !== null && lst !== null && lst > 0) { s.cur[2] = lst - s.cur[0] - s.cur[1]; }
+    for (k = 0; k < 3; k++) { if (s.cur[k] !== null) { s.prev[k] = s.cur[k]; if (s.best[k] === null || s.cur[k] < s.best[k]) { s.best[k] = s.cur[k]; } } }
+    s.cur = [null, null, null]; s.lap = lap; s.n = 0; s.start = 0; s.last = idx;
     return s;
   }
-  if (cs !== s.idx) {
-    ls = tms_secs(tms_gd('LastSectorTime'));
-    if (cs === s.idx + 1 && s.start !== null) { s.cur[s.idx] = (ls !== null && ls > 1000) ? ls / 1000 : ((ls !== null && ls > 0 && ls !== s.ls) ? ls : clt - s.start); s.start = clt; } else { s.start = null; }
-    s.ls = ls; s.idx = cs;
+  if (s.n === null) { s.last = idx; return s; }     // the dash was opened mid-lap: the sector number is unknown until the next lap line
+  if (idx > s.last) {
+    if (idx === s.last + 1 && s.n < 2 && s.start !== null) {
+      ls = tms_secs(tms_gd('LastSectorTime')); if (ls !== null && ls > 1000) { ls = ls / 1000; }
+      s.cur[s.n] = (ls !== null && ls > 0 && ls !== s.ls) ? ls : clt - s.start;
+      s.ls = ls; s.n++; s.start = clt;
+    } else { s.n = null; }
   }
+  s.last = idx;
   return s;
 }
 // {t, k}: k = 'cur' (finished this lap), 'run' (running now) or 'prev' (last lap's, until this lap replaces it); null when unknown
 function tms_secVal(root, i) {
-  var g = tms_secs(i === 0 ? tms_gd('Sector1Time') : (i === 1 ? tms_gd('Sector2Time') : tms_gd('Sector3LastLapTime'))), s, clt;
+  var s = tms_sec(root), g, clt;
+  if (s.n !== null) {
+    if (s.cur[i] !== null) { return { t: s.cur[i], k: 'cur' }; }
+    if (s.n === i && s.start !== null) { clt = tms_secs(tms_gd('CurrentLapTime')); if (clt !== null) { return { t: clt - s.start, k: 'run' }; } }
+    return s.prev[i] !== null ? { t: s.prev[i], k: 'prev' } : null;
+  }
+  g = tms_secs(i === 0 ? tms_gd('Sector1Time') : (i === 1 ? tms_gd('Sector2Time') : tms_gd('Sector3LastLapTime')));      // not tracking yet: the game's own values where it has them
   if (g !== null && g > 0) { return { t: g, k: 'cur' }; }
-  s = tms_sec(root);
-  if (s.cur[i] !== null) { return { t: s.cur[i], k: 'cur' }; }
-  if (s.idx === i && s.start !== null) { clt = tms_secs(tms_gd('CurrentLapTime')); if (clt !== null) { return { t: clt - s.start, k: 'run' }; } }
-  if (s.prev[i] !== null) { return { t: s.prev[i], k: 'prev' }; }
-  return null;
+  return s.prev[i] !== null ? { t: s.prev[i], k: 'prev' } : null;
 }
+// best time of sector i: the game's, else the best of the laps timed here
+function tms_secBest(root, i) { var t = tms_secs(i === 0 ? tms_gd('Sector1BestTime') : (i === 1 ? tms_gd('Sector2BestTime') : tms_gd('Sector3BestLapTime'))); if (t === null || t <= 0) { t = tms_sec(root).best[i]; } return (t === null || t <= 0) ? null : t; }
 // Lap history row k (0 = the lap just finished): SimHub's own PersistantTracker keeps the last laps; row 0 falls back to LastLapTime.
 function tms_hist(k) {
   var n = tms_n(tms_gd('CompletedLaps')), t = tms_secs($prop('PersistantTrackerPlugin.PreviousLap_0' + k)), d = tms_n($prop('PersistantTrackerPlugin.PreviousLap_0' + k + '_DeltaToSessionBest')), b = tms_secs(tms_gd('BestLapTime'));
@@ -399,6 +407,7 @@ function tms2(key, root, i) {
     case 'hlTime': v = tms_hist(i); return v === null ? '' : tms_fmtTime(v.t);
     case 'hlDelta': v = tms_hist(i); return (v === null || v.d === null) ? '' : tms_sg(v.d, 3);
     case 'hlColor': v = tms_hist(i); return (v === null || v.d === null) ? TMS_COL.dim : (v.d <= 0.0005 ? TMS_COL.best : (v.d < 0.3 ? TMS_COL.white : TMS_COL.warn));
+    case 'hlBar': v = tms_hist(i); if (v === null || v.d === null) { return 0; } x = 2; for (r = 0; r < 5; r++) { b = tms_hist(r); if (b !== null && b.d !== null && b.d > x) { x = b.d; } } return v.d <= 0.0005 ? 3 : Math.max(3, Math.round(tms_cl(v.d / x, 0, 1) * 300));
     case 'deltaRange': return tms_dRange(root);
     case 'deltaLo': return -tms_dRange(root);
     case 'deltaHiText': return '+' + tms_dRange(root) + 's';

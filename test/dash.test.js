@@ -267,6 +267,45 @@ t('track map: dots remember the lap, share one scale, stay inside 0..1; nothing 
   assert.strictEqual(o[2], '#FF6A6A76'); assert.strictEqual(o[6], '#FFF3FF3D'); assert.ok(Math.abs(o[3] - 0) < 0.05, 'half a lap round: x at the far end ' + o[3]);
   assert.strictEqual(drive([fr[0], fr[1]], [['mapCol', 0]])[0], '#00000000');
 });
+// sector index as SimHub reports it for AC: 1, 2, 3 (the probe showed index 2 with only Sector1Time set)
+function lapSeq(base, laps, startAt, lag) {      // laps of 20.3 / 20.7 / 20.4 s; the index lags 'lag' frames behind the lap line
+  var fr = [], lap, t, lt, idx, last = 0, n = 0;
+  for (lap = 2; lap < 2 + laps; lap++) {
+    for (t = 0; t < 61.4; t += 0.1) {
+      if (lap === 2 && t < startAt) { continue; }
+      idx = base + (t < 20.3 ? 0 : (t < 41.0 ? 1 : 2));
+      if (lap > 2 && t < lag * 0.1) { idx = base + 2; }
+      fr.push(acFrame(lap, t, idx, t < 20.3 ? last : (t < 41.0 ? 20.3 : 20.7), 61.4));
+    }
+  }
+  for (t = 0; t < 0.6; t += 0.1) { fr.push(acFrame(2 + laps, t, base + (t < lag * 0.1 ? 2 : 0), 20.7, 61.4)); }      // the first frames of the next lap close the last sector
+  return fr;
+}
+t('sectors count with a 1-based index (as SimHub reports it) and with a 0-based one: S2 and S3 are timed, S3 from the lap time', function () {
+  var keys = [['sector', 0], ['sector', 1], ['sector', 2]], b;
+  [0, 1].forEach(function (base) {
+    b = drive(lapSeq(base, 2, 0, 0), keys);
+    assert.ok(/^0.[0-9]{2}$/.test(b[0]), 'base ' + base + ': sector 1 of the new lap is running: ' + b.join('|')); assert.strictEqual(b[1], '20.70', 'base ' + base + ': ' + b.join('|')); assert.strictEqual(b[2], '20.40', 'sector 3 of the lap just finished: ' + b[2]);
+    b = drive(lapSeq(base, 2, 0, 0).slice(0, -6), keys); assert.deepStrictEqual(b, ['20.30', '20.70', '20.30'].slice(0, 2).concat([b[2]]), 'at the end of the lap sectors 1 and 2 are final: ' + b.join('|'));
+  });
+});
+t('sectors: the index lagging behind the lap line does not start a phantom sector', function () {
+  var keys = [['sector', 0], ['sector', 1], ['sector', 2]], b = drive(lapSeq(1, 3, 0, 4), keys);
+  assert.ok(/^0.[0-9]{2}$/.test(b[0]), b.join('|')); assert.strictEqual(b[1], '20.70'); assert.strictEqual(b[2], '20.40');
+});
+t('sectors: a dash opened mid-lap waits for the next lap line, then times every sector; best sectors are kept here when the game has none', function () {
+  var keys = [['sector', 1], ['sector', 2], ['sectorBest', 1], ['sectorBest', 2], ['sectorColor', 1]], mid = drive(lapSeq(1, 1, 30, 0), keys), full = drive(lapSeq(1, 3, 30, 0), keys);
+  assert.strictEqual(mid[1], '--', 'unknown until the next lap line: ' + mid[1]);
+  assert.deepStrictEqual(full.slice(0, 4), ['20.70', '20.40', 'best 20.70', 'best 20.40']); assert.strictEqual(full[4], '#FF80808B', 'last lap value until this lap replaces it: dim');
+  assert.strictEqual(drive(lapSeq(1, 3, 30, 0).slice(0, -6), keys)[4], '#FFB66DFF', 'a finished sector equal to the best is purple');
+});
+t('lap history gap bars: stub for the best lap, longer for slower laps, scaled to the slowest of the five, capped at 300 px', function () {
+  var p = { 'DataCorePlugin.CurrentGame': AC }, PT = 'PersistantTrackerPlugin.', i, d = [0, 1, 2, 4, 0.5];
+  p[G + 'CompletedLaps'] = 9; p[G + 'BestLapTime'] = 100;
+  for (i = 0; i < 5; i++) { p[PT + 'PreviousLap_0' + i] = 100 + d[i]; p[PT + 'PreviousLap_0' + i + '_DeltaToSessionBest'] = d[i]; }
+  assert.deepStrictEqual(drive([p], [['hlBar', 0], ['hlBar', 1], ['hlBar', 2], ['hlBar', 3], ['hlBar', 4]]), [3, 75, 150, 300, 38]);
+  assert.strictEqual(drive([{ 'DataCorePlugin.CurrentGame': AC }], [['hlBar', 0]])[0], 0);
+});
 var fail = 0;
 tests.forEach(function (x) { try { x[1](); console.log('ok   ' + x[0]); } catch (e) { fail++; console.log('FAIL ' + x[0] + '\n     ' + e.message); } });
 process.exit(fail ? 1 : 0);

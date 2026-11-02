@@ -1,7 +1,7 @@
 {
- "items": 700,
+ "items": 705,
  "report": {
-  "live": 541,
+  "live": 551,
   "static": 284,
   "plugin": [
    "best-lap dashed overlay on pedal graph",

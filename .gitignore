@@ -35,3 +35,11 @@ mock/shots/*
 
 # scratch zooms of the annotated screenshot
 build/inspect/annot/*_2x.png
+
+# debugging scratch from the SimHub web client checks: SimHub's own client scripts, served definitions, live game data
+build/inspect/cc.js
+build/inspect/controls.js
+build/inspect/registration.js
+build/inspect/def_*
+build/inspect/served_*
+build/inspect/gamedata_live.json
