@@ -15,7 +15,7 @@ var refKeys = {};
 
 t('probe: title equals folder name, 1920x1080, unique names, inside the canvas, whole-number geometry', function () {
   var meta = JSON.parse(fs.readFileSync(root + 'dash/out/TMSProbe/TMSProbe.djson.metadata', 'utf8')), names = {}, bad = [];
-  assert.strictEqual(meta.Title, 'TMSProbe'); assert.strictEqual(dash.BaseWidth, 1920); assert.strictEqual(dash.BaseHeight, 1080); assert.strictEqual(dash.Images.length, 0);
+  assert.strictEqual(meta.Title, 'TMSProbe'); assert.strictEqual(dash.BaseWidth, 1920); assert.strictEqual(dash.BaseHeight, 1080); var reg = {}; dash.Images.forEach(function (i) { reg[i.Name] = 1; }); items.forEach(function (it) { if (it.Image) { assert.ok(reg[it.Image], 'unregistered image ' + it.Image); } }); assert.strictEqual(dash.Images.length, 2);
   items.forEach(function (it) { assert.ok(!names[it.Name], 'dup ' + it.Name); names[it.Name] = 1;
     ['Left', 'Top', 'Width', 'Height'].forEach(function (k) { if (it[k] % 1 !== 0) { bad.push(it.Name + ' ' + k); } });
     if (it.Left < 0 || it.Top < 0 || it.Left + it.Width > 1920 || it.Top + it.Height > 1080) { bad.push(it.Name + ' outside canvas'); } });
@@ -23,7 +23,7 @@ t('probe: title equals folder name, 1920x1080, unique names, inside the canvas, 
 });
 t('probe: every key exists in the reference dash for that item type', function () {
   if (!ref) { throw SKIP; }
-  var bad = {}; items.forEach(function (it) { var allowed = refKeys[typeOf(it)]; Object.keys(it).forEach(function (k) { if (!allowed || !allowed[k]) { bad[typeOf(it) + '.' + k] = 1; } }); });
+  var bad = {}; items.forEach(function (it) { var allowed = refKeys[typeOf(it)]; Object.keys(it).forEach(function (k) { if (typeOf(it) === 'ImageItem' && k === 'Rotation') { return; }   /* a static Rotation on ImageItem is stored in the Endurance/Halo/Rally reference packages (value 180), not in this one */ if (!allowed || !allowed[k]) { bad[typeOf(it) + '.' + k] = 1; } }); });
   assert.deepStrictEqual(Object.keys(bad), []);
 });
 t('probe: formulas are ES5 and show the raw value, the type, and "undefined" for missing properties', function () {

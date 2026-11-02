@@ -6,7 +6,7 @@
    "car_top",
    "car_side_pivot",
    "car_rear_pivot",
-   "wheel_moza",
+   "wheel_sq",
    "arrow_nose",
    "arrow_travel"
   ],
@@ -15,8 +15,11 @@
  },
  {
   "name": "TMSProbe",
-  "items": 126,
-  "images": [],
+  "items": 147,
+  "images": [
+   "wheel_moza",
+   "wheel_sq"
+  ],
   "ext": false,
   "what": "probe: raw property values, types and min/max for the unverified signs and units"
  }

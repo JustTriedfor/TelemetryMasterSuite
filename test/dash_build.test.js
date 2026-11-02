@@ -42,6 +42,15 @@ t('schema: bound properties are ones the reference binds (or documented base pro
   items.forEach(function (it) { var ty = typeOf(it); Object.keys(it.Bindings).forEach(function (p) { if (!(refBind[ty] && refBind[ty][p]) && !ASSUMED[p]) { bad[ty + '.' + p] = 1; } }); });
   assert.deepStrictEqual(Object.keys(bad), []);
 });
+// the steering wheel turns up to +-270 degrees; a wide image in a wide box looked stretched in SimHub, so it must be a square image in a square box
+t('steering wheel: square image in a square box, rotation bound, no other aspect distortion on any image', function () {
+  var imgs = {}, bad = [], wheel = items.filter(function (it) { return it.Name.indexOf('wheel_') === 0 && it.Image; })[0];
+  dash.Images.forEach(function (i) { imgs[i.Name] = i; });
+  assert.ok(wheel, 'wheel image item'); assert.strictEqual(imgs[wheel.Image].Width, imgs[wheel.Image].Height, 'wheel image is square'); assert.strictEqual(wheel.Width, wheel.Height, 'wheel box is square');
+  assert.ok(wheel.Bindings.Rotation, 'wheel rotation is bound');
+  items.forEach(function (it) { if (!it.Image) { return; } var i = imgs[it.Image], d = (it.Width / it.Height) / (i.Width / i.Height) - 1; if (Math.abs(d) > 0.02) { bad.push(it.Name + ' ' + (d * 100).toFixed(1) + '%'); } });
+  assert.deepStrictEqual(bad, []);
+});
 t('geometry: finite numbers, positive sizes, inside the 1920x1080 canvas', function () {
   var bad = [];
   items.forEach(function (it) { ['Left', 'Top', 'Width', 'Height'].forEach(function (k) { if (typeof it[k] !== 'number' || it[k] !== it[k]) { bad.push(it.Name + ' ' + k); } });

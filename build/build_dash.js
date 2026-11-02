@@ -238,9 +238,9 @@ function base(type, name, x, y, w, h, extra) { return I.base(type, name, x, y, w
   label(x + 2, y + 30, 90, 13, 'OVERSTEER', { fs: 11, color: C.dim }); label(x + 470 / 2 - 24, y + 30, 60, 13, 'NEUTRAL', { fs: 11, color: C.dim }); label(x + 470 - 80, y + 30, 90, 13, 'UNDERSTEER', { fs: 11, color: C.dim, ha: 2 });
 })();
 (function wheel() {
-  var c = CV.cWheel, ww = 92, wh = ww * 500 / 900;
+  var c = CV.cWheel, bs = 106;     // square box: the wheel image is a square canvas (tools/make_wheel_sq.py) so rotating it never re-fits a wide box; the wheel itself is 92 px wide in it
   add(I.rect(c.x, c.y, c.w, c.h, '#0F0F12')); label(c.x + 6, c.y + 2, 80, 13, 'STEERING', { fs: 11, color: C.dim });
-  var im = add(I.image('wheel_moza', c.x + 58 - ww / 2, c.y + 54 - wh / 2, ww, wh, 'wheel')); I.bind(im, 'Rotation', tmsx('steerRot')); report.live++; report.images++;
+  var im = add(I.image('wheel_sq', c.x + 58 - bs / 2, c.y + 54 - bs / 2, bs, bs, 'wheel')); I.bind(im, 'Rotation', tmsx('steerRot')); report.live++; report.images++;
   livetext(c.x + 6, c.y + 98, 60, 14, { fs: 12, fw: 'Bold', color: C.white }, 'steerText'); livetext(c.x + 66, c.y + 98, 52, 14, { fs: 11, color: C.dim }, 'steerRawText');
   [['THR', 'thr', C.thr], ['BRK', 'brk', C.brake], ['CLU', 'clu', '#AAB0BC']].forEach(function (d, k) {
     var x = c.x + 118 + k * 46; add(I.rect(x, c.y + 16, 34, 76, '#1F1F25')); var f = add(I.rect(x, c.y + 92, 34, 0, d[2]));
@@ -292,7 +292,7 @@ function base(type, name, x, y, w, h, extra) { return I.base(type, name, x, y, w
 })();
 
 // ---------- 4. output: the main dash plus a diagnostic ladder. The metadata Title always equals the folder/file name (both known-good packages do) ----------
-var IMGS = ['car_top', 'car_side_pivot', 'car_rear_pivot', 'wheel_moza', 'arrow_nose', 'arrow_travel'];
+var IMGS = ['car_top', 'car_side_pivot', 'car_rear_pivot', 'wheel_sq', 'arrow_nose', 'arrow_travel'];
 var tplDjson = JSON.parse(fs.readFileSync(path.join(root, 'template_extracted', 'test', 'test.djson'), 'utf8'));
 var tplMeta = JSON.parse(fs.readFileSync(path.join(root, 'template_extracted', 'test', 'test.djson.metadata'), 'utf8'));
 function imageMeta(names) {

@@ -1,5 +1,5 @@
 // Builds TMSProbe: a one-screen diagnostic dash that prints the RAW value, JS type and min/max seen of every property the main dash depends on.
-// Text and rectangles only, plain $prop() bindings. Drive a lap with it (full lock both ways, full throttle, hard brake), screenshot it, and the
+// Text and rectangles only (plus a small rotation test with the two wheel images), plain $prop() bindings. Drive a lap with it (full lock both ways, full throttle, hard brake), screenshot it, and the
 // unverified signs, scales and units are settled. Run after build/build_dash.js:  node build/build_probe.js && python build/package.py
 var fs = require('fs'), path = require('path'), I = require('./items.js');
 var root = path.join(__dirname, '..');
@@ -35,9 +35,7 @@ var groups = [
     row(T + 'SessionBestLiveDeltaSeconds', 'Tracker.SessionBestLiveDelta'), row(T + 'SessionBestLiveDeltaProgressSeconds', 'Tracker.SessionBestDeltaProg'), row(T + 'AllTimeBestLiveDeltaSeconds', 'Tracker.AllTimeBestLiveDelta'), row(T + 'PreviousLap_00'), row(T + 'PreviousLap_01'), row(T + 'SessionBest'),
     row(G + 'CurrentSectorIndex'), row(G + 'LastSectorTime'), row(G + 'Sector1LastLapTime'), row(G + 'Sector2LastLapTime') ] },
   { title: 'RAW PEDALS AND WHEEL SPEEDS  (scale: 0..1 or 0..100?)', rows: [
-    row(P + 'Gas'), row(P + 'Brake'), row(P + 'Clutch'), row(P + 'WheelAngularSpeed01'), row(P + 'WheelAngularSpeed02'), row(P + 'WheelAngularSpeed03'), row(P + 'WheelAngularSpeed04'), row(P + 'RideHeight01'), row(P + 'Gear'), row(P + 'Rpms') ] },
-  { title: 'SESSION AND CAR', rows: [
-    row(G + 'SessionTypeName'), row(G + 'TrackName'), row(G + 'TrackCode'), row(G + 'CarModel'), row(G + 'CarClass'), row(G + 'IsInPit'), row(G + 'IsInPitLane'), row(G + 'PitLimiterOn'), row(G + 'LapInvalidated') ] }
+    row(P + 'Gas'), row(P + 'Brake'), row(P + 'Clutch'), row(P + 'WheelAngularSpeed01'), row(P + 'WheelAngularSpeed02'), row(P + 'WheelAngularSpeed03'), row(P + 'WheelAngularSpeed04'), row(P + 'RideHeight01'), row(P + 'Gear'), row(P + 'Rpms') ] }
 ];
 
 var items = [], COLX = [24, 656, 1288], COLW = 608, ROW = 21, BANDY = [70, 420, 770];
@@ -61,14 +59,33 @@ groups.forEach(function (g, gi) {
   });
 });
 
+// ---- rotation test (bottom right): wide image in a wide box above, square image in a square box below ----
+var RX = COLX[2], RY = BANDY[2], ANG = [0, 45, 90, 135, 'spin'];
+items.push(I.rect(RX, RY, COLW, 22, '#26262C', 'hd'));
+items.push(I.text(RX + 6, RY + 2, COLW - 12, 18, 'ROTATION TEST  (does the wheel keep its shape?)  top: wide image, bottom: square image', { fs: 13, fw: 'Bold', color: '#FFD60A', va: 1 }, 'gt'));
+ANG.forEach(function (ang, k) {
+  var cx = RX + 4 + k * 121, lab = ang === 'spin' ? 'spin (bound)' : ang + ' deg';
+  items.push(I.text(cx, RY + 25, 118, 14, 'WIDE   ' + lab, { fs: 11, color: '#8A8A94', font: 'Consolas' }, 'rl'));
+  items.push(I.rect(cx + 17, RY + 62, 84, 47, '#1B1B20', 'rbox'));       // 84 px wheel, so even turned 90 degrees it stays clear of the labels above and below
+  var w = I.image('wheel_moza', cx + 17, RY + 62, 84, 47, 'rot_wide');
+  items.push(I.text(cx, RY + 131, 118, 14, 'SQUARE ' + lab, { fs: 11, color: '#8A8A94', font: 'Consolas' }, 'rl'));
+  items.push(I.rect(cx + 10, RY + 148, 97, 97, '#1B1B20', 'rbox'));
+  var q = I.image('wheel_sq', cx + 10, RY + 148, 97, 97, 'rot_sq');
+  if (ang === 'spin') { I.bind(w, 'Rotation', 'return Math.round((new Date().getTime() / 10) % 360);'); I.bind(q, 'Rotation', 'return Math.round((new Date().getTime() / 10) % 360);'); }
+  else { w.Rotation = ang; q.Rotation = ang; }
+  items.push(w); items.push(q);
+});
+
 var d = JSON.parse(JSON.stringify(main));
-d.Id = 'e1d3c6a0-5b7c-4f0e-9a41-0c5d7a1f2b90'; d.Images = []; d.Screens[0].Items = items; d.Screens[0].ScreenId = '0f5c2a9e-6a3d-4a77-b5e0-2c8d9b3a1e44';
+var crypto = require('crypto');
+function imageMeta(names) { return names.map(function (n) { var buf = fs.readFileSync(path.join(root, 'dash', 'assets', n + '.png')); return { Name: n, Extension: '.png', Modified: false, Optimized: true, Width: buf.readUInt32BE(16), Height: buf.readUInt32BE(20), Length: buf.length, MD5: crypto.createHash('md5').update(buf).digest('hex') }; }); }
+d.Id = 'e1d3c6a0-5b7c-4f0e-9a41-0c5d7a1f2b90'; d.Images = imageMeta(['wheel_moza', 'wheel_sq']); d.Screens[0].Items = items; d.Screens[0].ScreenId = '0f5c2a9e-6a3d-4a77-b5e0-2c8d9b3a1e44';
 var dir = path.join(root, 'dash/out', NAME); if (!fs.existsSync(dir)) { fs.mkdirSync(dir); }
 fs.writeFileSync(path.join(dir, NAME + '.djson'), JSON.stringify(d));
 var meta = JSON.parse(fs.readFileSync(path.join(root, 'dash/out/TelemetryMasterSuite/TelemetryMasterSuite.djson.metadata'), 'utf8')); meta.Title = NAME;
 fs.writeFileSync(path.join(dir, NAME + '.djson.metadata'), JSON.stringify(meta, null, 2));
 fs.writeFileSync(path.join(root, 'build', 'probe_props.json'), JSON.stringify(groups.reduce(function (a, g) { return a.concat(g.rows.map(function (r) { return r[0]; })); }, [])));
 var vp = path.join(root, 'build/variants.json'), variants = JSON.parse(fs.readFileSync(vp, 'utf8')).filter(function (v) { return v.name !== NAME; });
-variants.push({ name: NAME, items: items.length, images: [], ext: false, what: 'probe: raw property values, types and min/max for the unverified signs and units' });
+variants.push({ name: NAME, items: items.length, images: ['wheel_moza', 'wheel_sq'], ext: false, what: 'probe: raw property values, types and min/max for the unverified signs and units' });
 fs.writeFileSync(vp, JSON.stringify(variants, null, 1));
 console.log(NAME, items.length, 'items,', groups.reduce(function (a, b) { return a + b.rows.length; }, 0), 'probed properties');

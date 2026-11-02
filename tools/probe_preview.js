@@ -15,7 +15,10 @@ items.forEach(function (it) {
   if (it.Bindings.Text) { var f = vm.runInContext('(function(root){' + it.Bindings.Text.Formula.Expression + '})', ctx); f(root); txt = f(root); }
   if (it.Bindings.TextColor) { col = vm.runInContext('(function(root){' + it.Bindings.TextColor.Formula.Expression + '})', ctx)(root); }
   var pos = 'position:absolute;left:' + it.Left + 'px;top:' + it.Top + 'px;width:' + it.Width + 'px;height:' + it.Height + 'px;';
-  if (it['$type'].indexOf('RectangleItem') > 0) { html.push('<div style="' + pos + 'background:' + css(it.BackgroundColor) + '"></div>'); }
+  if (it['$type'].indexOf('ImageItem') > 0) {
+    var rot = it.Rotation || 0; if (it.Bindings.Rotation) { rot = vm.runInContext('(function(root){' + it.Bindings.Rotation.Formula.Expression + '})', ctx)(root); }
+    html.push('<img src="../assets/' + it.Image + '.png" style="' + pos + 'transform:rotate(' + rot + 'deg)">');
+  } else if (it['$type'].indexOf('RectangleItem') > 0) { html.push('<div style="' + pos + 'background:' + css(it.BackgroundColor) + '"></div>'); }
   else { html.push('<div style="' + pos + 'overflow:hidden;color:' + css(col) + ';font-family:\'' + it.Font + '\';font-size:' + it.FontSize + 'px;font-weight:' + (it.FontWeight === 'Bold' ? 700 : 400) + ';line-height:' + it.Height + 'px;white-space:pre">' + String(txt).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</div>'); }
 });
 html.push('</div>'); fs.writeFileSync(path.join(root, 'dash/out/preview_probe.html'), html.join('\n')); console.log('written');
