@@ -29,7 +29,7 @@ var groups = [
     row(G + 'CurrentLap'), row(G + 'CompletedLaps'), row(G + 'TotalLaps'), row(G + 'RemainingLaps'), row(G + 'CurrentLapTime'), row(G + 'BestLapTime'), row(G + 'LastLapTime'), row(G + 'DeltaToSessionBest'),
     row(G + 'Sector1Time'), row(G + 'Sector2Time'), row(G + 'Sector3LastLapTime'), row(G + 'Sector1BestTime'), row(G + 'SessionTimeLeft') ] },
   { title: 'FUEL, ENGINE, SESSION', rows: [
-    row(G + 'Fuel'), row(C + 'Fuel_LitersPerLap'), row(C + 'Fuel_RemainingLaps'), row(G + 'OilTemperature'), row(G + 'WaterTemperature'), row(G + 'RoadTemperature'), row(G + 'AirTemperature'),
+    row(G + 'Fuel'), row(C + 'Fuel_LitersPerLap'), row(C + 'Fuel_RemainingLaps'), row(C + 'Fuel_LastLapConsumption', 'Computed.Fuel_LastLapCons'), row(C + 'Fuel_CurrentLapConsumption', 'Computed.Fuel_CurLapCons'), row(G + 'OilTemperature'), row(G + 'WaterTemperature'), row(G + 'RoadTemperature'), row(G + 'AirTemperature'),
     row(G + 'Position'), row(G + 'CarId'), row(G + 'Flag_Name'), row('DataCorePlugin.CurrentGame', 'CurrentGame'), row('DataCorePlugin.GameRawData.Graphics.gapAhead', 'Graphics.gapAhead (ACC)'), row('DataCorePlugin.GameRawData.Graphics.gapBehind', 'Graphics.gapBehind (ACC)') ] },
   { title: 'DELTA, SECTORS, LAP HISTORY  (used by the new panels)', rows: [
     row(T + 'SessionBestLiveDeltaSeconds', 'Tracker.SessionBestLiveDelta'), row(T + 'PreviousLap_00'), row(T + 'PreviousLap_01'), row(T + 'PreviousLap_04'), row(T + 'PreviousLap_00_DeltaToSessionBest', 'Tracker.PrevLap00 DeltaSB'),

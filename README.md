@@ -35,3 +35,7 @@ Python needs Pillow. Previews: `node build/preview.js acc 25.5` or `node build/p
 ## Not in this repository
 
 Kept local on purpose: third-party reference dashboards used only to learn the file format (`friend_extracted/`, `ref_extracted/`; the three schema and type tests skip without them), the raw source images for the car and wheel cut-outs, and the one-off patch scripts from the iterative build.
+
+## Checking a dash in SimHub's real web client
+
+With SimHub running and the dash imported: `node tools/cdp_dash.js TelemetryMasterSuite 12` renders it headlessly in SimHub's own client, prints console errors and uncaught exceptions, compares the number of rendered items with the file, and saves a screenshot (see `TO_VERIFY.md` section S for why this exists). If a re-imported dash is blank, restart SimHub once.

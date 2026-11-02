@@ -1,11 +1,14 @@
 """Package every variant listed in build/variants.json into dash/out/<name>.simhubdash (zip, backslash entry names like SimHub's own).
 Run after build/build_dash.js:  python build/package.py"""
-import io, json, os, zipfile
+import io, json, os, time, zipfile
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TPL = os.path.join(ROOT, 'template_extracted', 'test')
 BS = chr(92)   # backslash
+# Entry times are the build time, not a constant: SimHub caches each dash definition by the file's modified time, so a package whose files all
+# carry the same fixed time looks unchanged after a re-import and SimHub keeps serving the old definition (blank dash, seen 2026-11-02).
+STAMP = time.localtime()[:6]
 
 
 def read(p):
@@ -15,7 +18,7 @@ def read(p):
 
 def put(z, name, data):
     # SimHub's own packages use backslash separators in the entry name; ZipInfo would rewrite them to '/', so set it afterwards
-    zi = zipfile.ZipInfo('x', date_time=(2026, 11, 1, 12, 0, 0))
+    zi = zipfile.ZipInfo('x', date_time=STAMP)
     zi.filename = name
     zi.compress_type = zipfile.ZIP_DEFLATED
     z.writestr(zi, data)
