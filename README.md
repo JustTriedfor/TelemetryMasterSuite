@@ -16,7 +16,7 @@ A SimHub dashboard for a second monitor (1920 x 1080) that puts **body slip angl
 
 `dash/out/TMSProbe.simhubdash` is a second, separate dash that prints raw property values, their types and their min/max, so that unverified assumptions can be settled with one screenshot. It is a diagnostic tool, not part of the dash.
 
-## What is on the screen
+## What is visible on the screen
 
 One colour per signal, everywhere: **beta yellow, brake red, throttle green, steering pale blue**; the four tyres are **FL cyan, FR mint, RL pink, RR sand**. Dark graphite panels, signal yellow for headings, Bahnschrift type.
 
@@ -87,7 +87,7 @@ One card per tyre: core temperature (with a trend arrow), pressure against your 
 - Corners as light as 0.3 g (a kink at speed) are logged and get a verdict.
 - The direction words in the G-force block assume SimHub's lateral g is positive to the left (inferred from the first probe).
 - Opponent gaps and best-lap overlays need a SimHub C# plugin; those panels were left out rather than faked.
-- ACC is checked offline only. iRacing is not supported.
+- ACC is checked offline only. iRacing is not supported (yet).
 
 The long list, with what was measured and what was inferred, is in `TO_VERIFY.md`.
 
