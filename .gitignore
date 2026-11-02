@@ -32,3 +32,6 @@ mock/shots/*
 # local tooling
 .claude/
 *.log
+
+# scratch zooms of the annotated screenshot
+build/inspect/annot/*_2x.png

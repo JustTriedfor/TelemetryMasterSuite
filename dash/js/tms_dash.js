@@ -23,6 +23,7 @@ function tms_ph(name, i) { var sx = i === undefined ? '' : '0' + (i + 1), p = 'D
 function tms_gd(name) { return $prop('DataCorePlugin.GameData.' + name); }
 function tms_pedal(v) { var n = tms_n(v); return n === null ? null : (n > 1 ? n / 100 : n); }
 function tms_cl(x, lo, hi) { return x < lo ? lo : (x > hi ? hi : x); }
+function tms_pad(v, n) { var t = String(v); while (t.length < n) { t = ' ' + t; } return t; }
 function tms_sg(v, d) { return (v >= 0 ? '+' : '') + v.toFixed(d); }
 function tms_secs(v) { return SHA.secs(v); }
 function tms_fmtTime(v) { var t = tms_secs(v), m, s; if (t === null || t <= 0) { return '--:--.---'; } m = Math.floor(t / 60); s = t - m * 60; return m + ':' + (s < 10 ? '0' : '') + s.toFixed(3); }
@@ -94,12 +95,6 @@ function tms_phase(root) {
   return SHP.phaseStep(root.ph, br, th, st, b, dt, tms_phys());
 }
 var TMS_PHASES = ['STRAIGHT', 'BRAKING', 'TRAIL', 'COAST', 'ROTATION', 'POWER'];
-function tms_grip(root, i) {
-  var a = [tms_slipOf(0), tms_slipOf(1), tms_slipOf(2), tms_slipOf(3)], r = [tms_ph('SlipRatio', 0), tms_ph('SlipRatio', 1), tms_ph('SlipRatio', 2), tms_ph('SlipRatio', 3)], g;
-  if (!root.gr) { root.gr = {}; }
-  g = SHP.gripUpdate(root.gr, tms_gd('CarId'), a, r[0] === null ? null : r, tms_phys());
-  return (g && !g.learning) ? g.util[i] : null;
-}
 // Balance as a normalised number in -1..1 (+ understeer, - oversteer): mean |slip| of the front pair vs the rear pair, only while cornering.
 function tms_balNorm(root) {
   var a = [tms_slipOf(0), tms_slipOf(1), tms_slipOf(2), tms_slipOf(3)], s = tms_n(tms_gd('SpeedKmh')), lg = tms_ph('AccG', 0), f, r, tot, target = 0;
@@ -197,7 +192,8 @@ function tms(key, root, i) {
     case 'lastLap': return tms_fmtTime(tms_gd('LastLapTime'));
     case 'predLap': v = tms_secs(tms_gd('BestLapTime')); x = tms_delta(); return (v === null || v <= 0 || x === null) ? '--:--.---' : tms_fmtTime(v + x);
     case 'lapNo': return tms_n(tms_gd('CurrentLap'));
-    case 'sector': return tms_fmtSec(i === 0 ? tms_gd('Sector1Time') : (i === 1 ? tms_gd('Sector2Time') : tms_gd('Sector3LastLapTime')));
+    case 'sector': v = tms_secVal(root, i); return v === null ? '--' : tms_fmtSec(v.t);
+    case 'sectorColor': v = tms_secVal(root, i); if (v === null || v.k === 'prev') { return TMS_COL.dim; } x = tms_secs(i === 0 ? tms_gd('Sector1BestTime') : (i === 1 ? tms_gd('Sector2BestTime') : tms_gd('Sector3BestLapTime'))); return (v.k === 'cur' && x !== null && x > 0 && v.t <= x + 0.0005) ? TMS_COL.best : TMS_COL.white;
     case 'sectorBest': t = tms_secs(i === 0 ? tms_gd('Sector1BestTime') : (i === 1 ? tms_gd('Sector2BestTime') : tms_gd('Sector3BestLapTime'))); return (t === null || t <= 0) ? '--' : 'best ' + tms_fmtSec(t);
     // fuel
     case 'fuel': return tms_n(tms_gd('Fuel'));
@@ -215,7 +211,7 @@ function tms(key, root, i) {
     case 'flag': v = tms_gd('Flag_Name'); return (v === null || v === undefined || v === '') ? 'GREEN' : String(v).toUpperCase();
     case 'flagColor': v = tms_gd('Flag_Name'); v = (v === null || v === undefined || v === '') ? 'GREEN' : String(v).toUpperCase();
       if (v === 'GREEN') { return TMS_COL.ok; } if (v.indexOf('YELLOW') >= 0) { return '#FFFFD60A'; } if (v.indexOf('BLUE') >= 0) { return TMS_COL.cold; } if (v.indexOf('RED') >= 0 || v.indexOf('BLACK') >= 0) { return TMS_COL.bad; } return TMS_COL.white;
-    case 'sessLeft': t = tms_secs(tms_gd('SessionTimeLeft')); return (t === null || t <= 0) ? '--' : Math.floor(t / 60) + ':' + ('0' + Math.floor(t % 60)).slice(-2);
+    case 'sessLeft': t = tms_secs(tms_gd('SessionTimeLeft')); if (t === null || t === 0) { return '--'; } t = Math.abs(t); return Math.floor(t / 60) + ':' + ('0' + Math.floor(t % 60)).slice(-2);   // negative = time elapsed (practice, seen in the AC probe)
     case 'temps': v = tms_temp(tms_gd('RoadTemperature')); x = tms_temp(tms_gd('AirTemperature')); return (v === null || x === null) ? 'n/a' : Math.round(v) + '° / ' + Math.round(x) + '°';
     case 'dataTag': g = tms_game(); return g === 'acc' ? 'ACC full' : (g === 'ac' ? 'AC: slip est.' : 'unsupported');
     // systems
@@ -235,6 +231,124 @@ function tms_dtRoot(root) { var now = new Date().getTime(), dt = root.dtT ? (now
 function tms_lapReset(root) { var l = tms_n($prop('DataCorePlugin.GameData.CompletedLaps')); if (root.lapId !== l) { root.lapId = l; return true; } return false; }
 
 // Rolling auto-range for a slow signal: returns the low or high end of the last 20 s (kept on root), never narrower than minSpan.
+// ---- panels that need state: every row formula runs its own copy of the detector on the same inputs, so they all agree without a plugin ----
+// One step of the braking-zone, event, lock-up and driver-metric detectors per distinct clock tick (the result is reused within a tick).
+function tms_step(root) {
+  var now = new Date().getTime(), s = root.sd, c = tms_phys(), dt, sp, br, th, steer, lap, ab, tc, ws, sr, lock, f, k, ll, wo = true, ro = true, band;
+  if (s && s.t === now) { return s; }
+  if (!s) { s = root.sd = { t: 0, lap: null, st: {}, n: 0 }; }
+  dt = s.t ? (now - s.t) / 1000 : 0; s.t = now;
+  sp = tms_n(tms_gd('SpeedKmh')); br = tms_pedal(tms_gd('Brake')); th = tms_pedal(tms_gd('Throttle')); steer = tms_steerFrac(); lap = tms_n(tms_gd('CompletedLaps'));
+  if (sp === null || br === null || th === null || !(dt > 0) || dt > 0.5) { return s; }
+  if (steer === null) { steer = 0; }
+  ab = tms_gd('ABSActive') ? true : false; tc = tms_gd('TCActive') ? true : false;
+  ws = [tms_ph('WheelAngularSpeed', 0), tms_ph('WheelAngularSpeed', 1), tms_ph('WheelAngularSpeed', 2), tms_ph('WheelAngularSpeed', 3)];
+  sr = [tms_ph('SlipRatio', 0), tms_ph('SlipRatio', 1), tms_ph('SlipRatio', 2), tms_ph('SlipRatio', 3)];
+  for (k = 0; k < 4; k++) { if (ws[k] === null) { wo = false; } if (sr[k] === null) { ro = false; } }
+  lock = SHP.lockups(s.st, sp / 3.6, br, th, wo ? ws : null, ro ? sr : null, c, null);
+  if (lap !== null && s.lap !== null && lap !== s.lap) { ll = tms_secs(tms_gd('LastLapTime')); SHP.zoneLapEnd(s.st, ll, true, c); SHP.metricsLapEnd(s.st, ll, true); }
+  if (lap !== null) { s.lap = lap; }
+  f = { lap: s.lap, pos: null, speed: sp / 3.6, brake: br, steer: steer, longG: tms_ph('AccG', 2), abs: ab, lock: lock[0] || lock[1] || lock[2] || lock[3] };
+  SHP.zoneUpdate(s.st, f, dt, c);
+  SHP.metricsUpdate(s.st, br, th, steer, dt, c);
+  band = tms_band(root);
+  SHP.eventsUpdate(s.st, { t: now / 1000, lap: s.lap, band: band, lock: lock, absActive: ab, tcActive: tc, offTrack: false }, c);
+  s.n++;
+  return s;
+}
+// braking zones, newest first: the live one (if any) then the finished ones, at most 5
+function tms_zrows(s) {
+  var z = s.st.zn, l = z ? SHP.rbToArray(z.list) : [], out = [], k;
+  if (z && z.cur) { out.push({ z: z.cur, live: true }); }
+  for (k = l.length - 1; k >= 0 && out.length < 5; k--) { out.push({ z: l[k], live: false }); }
+  return out;
+}
+function tms_evrows(s) { var l = SHP.eventList(s.st), out = [], k; for (k = l.length - 1; k >= 0 && out.length < 6; k--) { out.push(l[k]); } return out; }
+var TMS_EVNAME = { SLIDE: 'SLIDE', ABS: 'ABS active', TC: 'TC active', OFFTRACK: 'OFF TRACK' };
+function tms_evText(e) { return e.type.indexOf('LOCKUP') === 0 ? 'LOCK-UP ' + e.detail : (TMS_EVNAME[e.type] || e.type); }
+// Sector times of the current lap. The game's own Sector1Time/Sector2Time are missing in AC (probe), so they are timed here from the sector index.
+function tms_sec(root) {
+  var s = root.sc, idx = tms_n(tms_gd('CurrentSectorIndex')), lap = tms_n(tms_gd('CompletedLaps')), clt = tms_secs(tms_gd('CurrentLapTime')), lst = tms_secs(tms_gd('LastLapTime')), ls, cs;
+  if (idx === null) { idx = tms_n($prop('DataCorePlugin.GameRawData.Graphics.CurrentSectorIndex')); }
+  if (!s) { s = root.sc = { cur: [null, null, null], prev: [null, null, null], idx: null, lap: lap, start: null, ls: null, armed: false }; }
+  if (clt === null || idx === null) { return s; }
+  if (lap !== s.lap) {          // lap line: close the last sector from the lap time, keep the finished lap, wait for the new lap's first sector
+    if (s.cur[0] !== null && s.cur[1] !== null && s.cur[2] === null && lst !== null && lst > 0) { s.cur[2] = lst - s.cur[0] - s.cur[1]; }
+    s.prev = s.cur; s.cur = [null, null, null]; s.lap = lap; s.idx = null; s.start = null; s.armed = true;
+  }
+  cs = tms_cl(Math.round(idx), 0, 2);
+  if (s.idx === null) {
+    if (s.armed) { if (cs === 0) { s.idx = 0; s.start = 0; s.armed = false; } } else { s.idx = cs; s.start = cs === 0 ? 0 : null; }
+    return s;
+  }
+  if (cs !== s.idx) {
+    ls = tms_secs(tms_gd('LastSectorTime'));
+    if (cs === s.idx + 1 && s.start !== null) { s.cur[s.idx] = (ls !== null && ls > 1000) ? ls / 1000 : ((ls !== null && ls > 0 && ls !== s.ls) ? ls : clt - s.start); s.start = clt; } else { s.start = null; }
+    s.ls = ls; s.idx = cs;
+  }
+  return s;
+}
+// {t, k}: k = 'cur' (finished this lap), 'run' (running now) or 'prev' (last lap's, until this lap replaces it); null when unknown
+function tms_secVal(root, i) {
+  var g = tms_secs(i === 0 ? tms_gd('Sector1Time') : (i === 1 ? tms_gd('Sector2Time') : tms_gd('Sector3LastLapTime'))), s, clt;
+  if (g !== null && g > 0) { return { t: g, k: 'cur' }; }
+  s = tms_sec(root);
+  if (s.cur[i] !== null) { return { t: s.cur[i], k: 'cur' }; }
+  if (s.idx === i && s.start !== null) { clt = tms_secs(tms_gd('CurrentLapTime')); if (clt !== null) { return { t: clt - s.start, k: 'run' }; } }
+  if (s.prev[i] !== null) { return { t: s.prev[i], k: 'prev' }; }
+  return null;
+}
+// Lap history row k (0 = the lap just finished): SimHub's own PersistantTracker keeps the last laps; row 0 falls back to LastLapTime.
+function tms_hist(k) {
+  var n = tms_n(tms_gd('CompletedLaps')), t = tms_secs($prop('PersistantTrackerPlugin.PreviousLap_0' + k)), d = tms_n($prop('PersistantTrackerPlugin.PreviousLap_0' + k + '_DeltaToSessionBest')), b = tms_secs(tms_gd('BestLapTime'));
+  if ((t === null || t <= 0) && k === 0) { t = tms_secs(tms_gd('LastLapTime')); }
+  if (t === null || t <= 0 || n === null || n - k < 1) { return null; }
+  if (d === null && b !== null && b > 0) { d = t - b; }
+  return { lap: n - k, t: t, d: d };
+}
+// Grip use: combined slip as a share of the recent peak for that tyre. The peak rises gradually (one kerb or impact spike cannot pin it) and halves every 90 s.
+function tms_grip(root, i) {
+  var g = root.gp, now = new Date().getTime(), dt, k, a, r, cur, pk, mn = 0.02, car = tms_gd('CarId');
+  if (!g) { g = root.gp = { pk: [0, 0, 0, 0], u: [0, 0, 0, 0], n: 0, t: now, car: car }; }
+  if (g.car !== car) { g.car = car; g.pk = [0, 0, 0, 0]; g.n = 0; }
+  dt = (now - g.t) / 1000; g.t = now; if (!(dt > 0) || dt > 1) { dt = 0.016; }
+  for (k = 0; k < 4; k++) {
+    a = tms_slipOf(k); if (a === null) { return null; }
+    r = tms_ph('SlipRatio', k); cur = r === null ? Math.abs(a) : Math.sqrt(a * a + r * r);
+    pk = g.pk[k] * Math.pow(0.5, dt / 90);
+    if (cur > pk) { pk = pk + 0.05 * (Math.min(cur, 2 * pk + mn) - pk); }
+    g.pk[k] = pk; g.u[k] = pk > mn ? tms_cl(cur / pk, 0, 1) : 0;
+  }
+  g.n++;
+  return g.n < 120 ? null : g.u[i];
+}
+// symmetric +-range for the delta chart from the last minute (steps of 0.5 s so the scale does not flicker)
+function tms_dRange(root) {
+  var now = new Date().getTime(), d, k, m = 0;
+  if (!root.dr) { root.dr = { a: [], t: 0 }; }
+  if (now - root.dr.t >= 250) { root.dr.t = now; d = tms_delta(); if (d !== null) { root.dr.a.push(Math.abs(d)); if (root.dr.a.length > 240) { root.dr.a.shift(); } } }
+  for (k = 0; k < root.dr.a.length; k++) { if (root.dr.a[k] > m) { m = root.dr.a[k]; } }
+  return Math.max(1, Math.ceil(m * 1.2 * 2) / 2);
+}
+// Track map without a plugin: dot k remembers where the car was in 1/72 of the lap (NormalizedCarPosition) and every dot keeps the same min/max of the path, so they all share one scale.
+function tms_mapPos() {
+  var u = tms_n($prop('DataCorePlugin.GameRawData.Graphics.NormalizedCarPosition')), x = tms_n(tms_gd('CarCoordinates01')), z = tms_n(tms_gd('CarCoordinates03'));
+  if (u === null) { u = tms_n(tms_gd('TrackPositionPercent')); if (u !== null && u > 1) { u = u / 100; } }
+  if (x === null) { x = tms_n($prop('DataCorePlugin.GameRawData.Graphics.CarCoordinates01')); }
+  if (z === null) { z = tms_n($prop('DataCorePlugin.GameRawData.Graphics.CarCoordinates03')); }
+  return (u === null || x === null || z === null) ? null : { u: u, x: x, z: z };
+}
+function tms_map(root, k, n) {
+  var p = tms_mapPos(), m = root.mp, sc;
+  if (!m) { m = root.mp = { x0: 1e18, x1: -1e18, z0: 1e18, z1: -1e18, px: null, pz: null }; }
+  if (p) {
+    if (p.x < m.x0) { m.x0 = p.x; } if (p.x > m.x1) { m.x1 = p.x; } if (p.z < m.z0) { m.z0 = p.z; } if (p.z > m.z1) { m.z1 = p.z; }
+    if (k < 0 || Math.floor(tms_cl(p.u, 0, 0.9999) * n) === k) { m.px = p.x; m.pz = p.z; }
+  }
+  sc = Math.max(m.x1 - m.x0, m.z1 - m.z0);
+  if (m.px === null || !(sc >= 30)) { return null; }          // nothing recorded yet, or less than 30 m of path
+  return { x: 0.5 + (m.px - (m.x0 + m.x1) / 2) / sc, y: 0.5 - (m.pz - (m.z0 + m.z1) / 2) / sc };
+}
 function tmsr(key, root, i, minSpan, which) {
   var now = new Date().getTime(), v, k, lo = 1e9, hi = -1e9, sp, c;
   if (!root.rb) { root.rb = []; root.rt = 0; }
@@ -263,12 +377,12 @@ function tms2(key, root, i) {
     case 'loadShare': x = [tms_ph('WheelLoad', 0), tms_ph('WheelLoad', 1), tms_ph('WheelLoad', 2), tms_ph('WheelLoad', 3)]; if (x[0] === null || x[1] === null || x[2] === null || x[3] === null) { return 'no tyre load'; } v = x[0] + x[1] + x[2] + x[3]; return 'F ' + Math.round((x[0] + x[1]) / v * 100) + '%  R ' + Math.round((x[2] + x[3]) / v * 100) + '%     L ' + Math.round((x[0] + x[2]) / v * 100) + '%  R ' + Math.round((x[1] + x[3]) / v * 100) + '%';
     case 'raceTotal': v = tms_n(tms_gd('TotalLaps')); return v === null ? 0 : v;
     case 'raceProg': v = tms_n(tms_gd('TotalLaps')); x = tms_n(tms_gd('CompletedLaps')); return (!v || x === null) ? 0 : tms_cl(x / v, 0, 1);
-    case 'raceText': b = tms_lapsToGo(); v = tms_n(tms_gd('TotalLaps')); x = tms_n(tms_gd('CurrentLap')); if (b === null) { return 'TO GO  (no lap count, time or plan)'; } if (b.src === 'race' && v) { return 'RACE  lap ' + x + ' of ' + v; } return 'TO GO  ' + b.n + ' laps  (' + (b.src === 'time' ? 'from session time' : 'plan: edit TMS_CFG.lapsTarget') + ')';
+    case 'raceText': b = tms_lapsToGo(); v = tms_n(tms_gd('TotalLaps')); x = tms_n(tms_gd('CurrentLap')); if (b === null) { return 'TO GO  (no lap count, time or plan)'; } if (b.src === 'race' && v) { return 'RACE  lap ' + x + ' of ' + v; } return 'TO GO  ' + b.n + ' laps  (' + (b.src === 'time' ? 'session time' : 'plan') + ')';
     case 'rangeFrac': v = tms_lapsLeft(root); b = tms_lapsToGo(); return (v === null || b === null || !b.n) ? 0 : tms_cl(v / b.n, 0, 1);
     case 'rangeColor': v = tms_lapsLeft(root); b = tms_lapsToGo(); if (v === null || b === null) { return TMS_COL.off; } return v >= b.n ? TMS_COL.ok : (b.n - v < 1 ? TMS_COL.warn : TMS_COL.bad);
     case 'rangeText': v = tms_lapsLeft(root); b = tms_lapsToGo(); if (v === null || b === null) { return 'FUEL RANGE  n/a'; } return v >= b.n ? 'FUEL RANGE  reaches the end' : 'FUEL RANGE  short by ' + (b.n - v).toFixed(1) + ' laps';
     case 'balTag': return tms_game() === 'acc' ? 'FROM TYRE SLIP' : 'ESTIMATED';
-    case 'lapSub': v = tms_n(tms_gd('CurrentLap')); return v === null ? 'live' : 'lap ' + v + '  |  best-lap overlays need the plugin';
+    case 'lapSub': v = tms_n(tms_gd('CurrentLap')); return v === null ? 'live' : 'lap ' + v;
     case 'treadIText': v = tms('treadI', root, i); return v === null ? 'n/a' : Math.round(v) + '°';
     case 'treadMText': v = tms('treadM', root, i); return v === null ? 'n/a' : Math.round(v) + '°';
     case 'treadOText': v = tms('treadO', root, i); return v === null ? 'n/a' : Math.round(v) + '°';
@@ -276,6 +390,36 @@ function tms2(key, root, i) {
     case 'brkPct': v = tms('brk', root, 0); return v === null ? 'n/a' : Math.round(v * 100) + '%';
     case 'cluPct': v = tms('clu', root, 0); return v === null ? 'n/a' : Math.round(v * 100) + '%';
     case 'loadN': v = tms_ph('WheelLoad', i); return v === null ? 'n/a' : String(Math.round(v));
+    case 'sessLabel': t = tms_secs(tms_gd('SessionTimeLeft')); return (t !== null && t < 0) ? 'SESSION TIME' : 'SESSION LEFT';
+    case 'hdrALabel': return tms_game() === 'acc' ? 'GAP AHEAD' : 'LAP';
+    case 'hdrA': if (tms_game() === 'acc') { return tms('gapA', root, i); } v = tms_n(tms_gd('CurrentLap')); x = tms_n(tms_gd('TotalLaps')); return v === null ? 'n/a' : (x !== null && x > 0 ? v + ' / ' + x : String(v));
+    case 'hdrBLabel': return tms_game() === 'acc' ? 'GAP BEHIND' : 'LAST LAP';
+    case 'hdrB': if (tms_game() === 'acc') { return tms('gapB', root, i); } return tms_fmtShort(tms_gd('LastLapTime'));
+    case 'hlLap': v = tms_hist(i); return v === null ? '' : 'L' + v.lap;
+    case 'hlTime': v = tms_hist(i); return v === null ? '' : tms_fmtTime(v.t);
+    case 'hlDelta': v = tms_hist(i); return (v === null || v.d === null) ? '' : tms_sg(v.d, 3);
+    case 'hlColor': v = tms_hist(i); return (v === null || v.d === null) ? TMS_COL.dim : (v.d <= 0.0005 ? TMS_COL.best : (v.d < 0.3 ? TMS_COL.white : TMS_COL.warn));
+    case 'deltaRange': return tms_dRange(root);
+    case 'deltaLo': return -tms_dRange(root);
+    case 'deltaHiText': return '+' + tms_dRange(root) + 's';
+    case 'deltaLoText': return '-' + tms_dRange(root) + 's';
+    case 'znRow': b = tms_step(root); v = tms_zrows(b)[i]; if (!v) { return i === 0 ? (b.n < 10 ? 'waiting for data' : 'no braking zone yet') : ''; } x = v.z; return (v.live ? '>' : ' ') + '#' + tms_pad(x.idx, 2) + ' ' + tms_pad(Math.round(x.entry * 3.6), 3) + '>' + tms_pad(Math.round(x.minSpeed * 3.6), 3) + ' ' + tms_pad(Math.round(x.peak * 100), 3) + '% ' + x.decel.toFixed(1) + 'g ' + x.trail.toFixed(1) + 's' + (x.abs ? ' A' + x.abs : '') + (x.lock ? ' L' : '');
+    case 'znColor': b = tms_step(root); v = tms_zrows(b)[i]; if (!v) { return TMS_COL.dim; } return v.z.lock ? TMS_COL.bad : (v.live ? TMS_COL.y : (v.z.abs ? TMS_COL.warn : TMS_COL.white));
+    case 'evRow': b = tms_step(root); v = tms_evrows(b)[i]; if (!v) { return i === 0 ? 'no events yet: slides, lock-ups, ABS, TC' : ''; } return 'L' + (v.lap === null ? '-' : v.lap) + '   ' + tms_evText(v);
+    case 'evColor': b = tms_step(root); v = tms_evrows(b)[i]; if (!v) { return TMS_COL.dim; } return v.type.indexOf('LOCKUP') === 0 ? TMS_COL.bad : (v.type === 'SLIDE' ? TMS_COL.warn : TMS_COL.text);
+    case 'lockN': b = tms_step(root); x = [0, 0, 0, 0]; v = SHP.eventList(b.st); for (r = 0; r < v.length; r++) { if (v[r].type.indexOf('LOCKUP') === 0 && v[r].lap === b.lap) { x[+v[r].type.slice(6)]++; } } return x[i];
+    case 'lockText': b = tms_step(root); x = [0, 0, 0, 0]; v = SHP.eventList(b.st); for (r = 0; r < v.length; r++) { if (v[r].type.indexOf('LOCKUP') === 0 && v[r].lap === b.lap) { x[+v[r].type.slice(6)]++; } } return 'LOCK-UPS THIS LAP    FL ' + x[0] + '    FR ' + x[1] + '    RL ' + x[2] + '    RR ' + x[3];
+    case 'lockColor': b = tms_step(root); v = SHP.eventList(b.st); for (r = 0; r < v.length; r++) { if (v[r].type.indexOf('LOCKUP') === 0 && v[r].lap === b.lap) { return TMS_COL.bad; } } return TMS_COL.text;
+    case 'revText': b = tms_step(root); return b.st.mc ? String(SHP.metricsSnapshot(b.st.mc).reversals) : '--';
+    case 'smoothText': b = tms_step(root); v = b.st.mc ? SHP.metricsSnapshot(b.st.mc).smoothness : null; return v === null ? '--' : v.toFixed(1) + '/s';
+    case 'engText': v = tms_temp(tms_gd('OilTemperature')); x = tms_temp(tms_gd('WaterTemperature')); return ((v !== null && v > 0) ? 'OIL ' + Math.round(v) + '\u00b0' : '') + ((v !== null && v > 0 && x !== null && x > 0) ? '    ' : '') + ((x !== null && x > 0) ? 'WATER ' + Math.round(x) + '\u00b0' : '');
+    case 'fuelMargin': v = tms_lapsLeft(root); b = tms_lapsToGo(); if (v === null || b === null) { return 'range n/a'; } return v >= b.n ? '+' + (v - b.n).toFixed(1) + ' laps spare' : 'SHORT by ' + (b.n - v).toFixed(1) + ' laps';
+    case 'mapX': b = tms_map(root, i, 72); return b === null ? 0 : b.x;
+    case 'mapY': b = tms_map(root, i, 72); return b === null ? 0 : b.y;
+    case 'mapCol': b = tms_map(root, i, 72); return b === null ? '#00000000' : (i < 0 ? TMS_COL.y : '#FF6A6A76');
+    case 'carX': b = tms_map(root, -1, 72); return b === null ? 0 : b.x;
+    case 'carY': b = tms_map(root, -1, 72); return b === null ? 0 : b.y;
+    case 'carCol': b = tms_map(root, -1, 72); return b === null ? '#00000000' : TMS_COL.y;
     default: return tms(key, root, i);
   }
 }

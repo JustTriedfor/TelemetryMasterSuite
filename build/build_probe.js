@@ -31,11 +31,11 @@ var groups = [
   { title: 'FUEL, ENGINE, SESSION', rows: [
     row(G + 'Fuel'), row(C + 'Fuel_LitersPerLap'), row(C + 'Fuel_RemainingLaps'), row(G + 'OilTemperature'), row(G + 'WaterTemperature'), row(G + 'RoadTemperature'), row(G + 'AirTemperature'),
     row(G + 'Position'), row(G + 'CarId'), row(G + 'Flag_Name'), row('DataCorePlugin.CurrentGame', 'CurrentGame'), row('DataCorePlugin.GameRawData.Graphics.gapAhead', 'Graphics.gapAhead (ACC)'), row('DataCorePlugin.GameRawData.Graphics.gapBehind', 'Graphics.gapBehind (ACC)') ] },
-  { title: 'DELTA, SECTORS, LAP HISTORY  (names in the catalog, values unknown)', rows: [
-    row(T + 'SessionBestLiveDeltaSeconds', 'Tracker.SessionBestLiveDelta'), row(T + 'SessionBestLiveDeltaProgressSeconds', 'Tracker.SessionBestDeltaProg'), row(T + 'AllTimeBestLiveDeltaSeconds', 'Tracker.AllTimeBestLiveDelta'), row(T + 'PreviousLap_00'), row(T + 'PreviousLap_01'), row(T + 'SessionBest'),
-    row(G + 'CurrentSectorIndex'), row(G + 'LastSectorTime'), row(G + 'Sector1LastLapTime'), row(G + 'Sector2LastLapTime') ] },
+  { title: 'DELTA, SECTORS, LAP HISTORY  (used by the new panels)', rows: [
+    row(T + 'SessionBestLiveDeltaSeconds', 'Tracker.SessionBestLiveDelta'), row(T + 'PreviousLap_00'), row(T + 'PreviousLap_01'), row(T + 'PreviousLap_04'), row(T + 'PreviousLap_00_DeltaToSessionBest', 'Tracker.PrevLap00 DeltaSB'),
+    row(G + 'CurrentSectorIndex'), row(G + 'LastSectorTime'), row('DataCorePlugin.GameRawData.Graphics.CurrentSectorIndex'), row('DataCorePlugin.GameRawData.Graphics.LastSectorTime'), row(G + 'Sector1BestTime') ] },
   { title: 'RAW PEDALS AND WHEEL SPEEDS  (scale: 0..1 or 0..100?)', rows: [
-    row(P + 'Gas'), row(P + 'Brake'), row(P + 'Clutch'), row(P + 'WheelAngularSpeed01'), row(P + 'WheelAngularSpeed02'), row(P + 'WheelAngularSpeed03'), row(P + 'WheelAngularSpeed04'), row(P + 'RideHeight01'), row(P + 'Gear'), row(P + 'Rpms') ] }
+    row(P + 'Gas'), row(P + 'Brake'), row(P + 'Clutch'), row(P + 'WheelAngularSpeed01'), row(P + 'WheelAngularSpeed02'), row(P + 'WheelAngularSpeed03'), row(P + 'WheelAngularSpeed04'), row('DataCorePlugin.GameRawData.Graphics.NormalizedCarPosition'), row(G + 'CarCoordinates01'), row(G + 'CarCoordinates03') ] }
 ];
 
 var items = [], COLX = [24, 656, 1288], COLW = 608, ROW = 21, BANDY = [70, 420, 770];

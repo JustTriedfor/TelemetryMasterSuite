@@ -33,7 +33,7 @@ function accProps(f) {
   }
   return p;
 }
-var KEYS = ['thr', 'brk', 'clu', 'steer', 'steerRot', 'steerText', 'gear', 'speed', 'rpm', 'rpmFrac', 'abs', 'tc', 'beta', 'betaRot', 'betaText', 'bandWord', 'bandColor', 'phaseColor', 'phaseText', 'balWord', 'balColor', 'balNeedle', 'steerRawText', 'balSeg', 'flagColor', 'wearLabel', 'grip', 'gripText', 'gripColor',
+var KEYS = ['thr', 'brk', 'clu', 'steer', 'steerRot', 'steerText', 'gear', 'speed', 'rpm', 'rpmFrac', 'abs', 'tc', 'beta', 'betaRot', 'betaText', 'bandWord', 'bandColor', 'phaseColor', 'phaseText', 'balWord', 'balColor', 'balNeedle', 'steerRawText', 'balSeg', 'flagColor', 'wearLabel', 'sectorColor', 'sessLabel', 'hdrALabel', 'hdrA', 'hdrBLabel', 'hdrB', 'hlLap', 'hlTime', 'hlDelta', 'hlColor', 'deltaRange', 'deltaLo', 'deltaHiText', 'deltaLoText', 'znRow', 'znColor', 'evRow', 'evColor', 'lockN', 'lockText', 'lockColor', 'revText', 'smoothText', 'engText', 'fuelMargin', 'mapX', 'mapY', 'mapCol', 'carX', 'carY', 'carCol', 'grip', 'gripText', 'gripColor',
   'latG', 'longG', 'yaw', 'pitchRot', 'rollRot', 'pitchText', 'rollText', 'core', 'coreText', 'coreColor', 'treadI', 'treadM', 'treadO', 'press', 'pressText', 'pressDeltaText', 'pressDeltaColor', 'wearText', 'slipText', 'slipDeg', 'loadText', 'load', 'loadBar', 'travelText', 'travel',
   'disc', 'discText', 'discColor', 'discWord', 'discPeak', 'discRate', 'padDisc', 'delta', 'deltaLabel', 'deltaText', 'deltaColor', 'curLap', 'bestLap', 'lastLap', 'predLap', 'lapNo', 'sector', 'sectorBest', 'fuel', 'fuelText', 'lplText', 'lapsLeft', 'lapsLeftText', 'lapsLeftColor', 'raceLapsLeft', 'toAddText',
   'pos', 'gapA', 'gapB', 'flag', 'sessLeft', 'temps', 'dataTag', 'oilText', 'oil', 'waterText', 'water', 'boostText', 'boost'];
@@ -118,7 +118,7 @@ t('fuel: laps to go from the race, else from session time, else the plan; fuel t
   var timed = JSON.parse(JSON.stringify(base)); timed[G + 'SessionTimeLeft'] = 3600; timed[G + 'BestLapTime'] = 500;      // 8:20 laps, an hour left -> 8 laps
   assert.strictEqual(one(timed, 'raceLapsLeft'), '8 (time)');
   var practice = JSON.parse(JSON.stringify(base)); practice[G + 'SessionTimeLeft'] = -517; practice[G + 'RemainingLaps'] = 0;   // the screenshot: practice, no lap count, negative time
-  assert.strictEqual(one(practice, 'raceLapsLeft'), '5 (plan)'); assert.strictEqual(one(practice, 'toAddText'), (5 * 11.17 - 43.1).toFixed(1) + ' L'); assert.strictEqual(one(practice, 'sessLeft'), '--');
+  assert.strictEqual(one(practice, 'raceLapsLeft'), '5 (plan)'); assert.strictEqual(one(practice, 'toAddText'), (5 * 11.17 - 43.1).toFixed(1) + ' L'); assert.strictEqual(one(practice, 'sessLeft'), '8:37'); assert.strictEqual(one(practice, 'sessLabel'), 'SESSION TIME'); assert.strictEqual(one(timed, 'sessLabel'), 'SESSION LEFT');
   assert.ok(/plan/.test(one(practice, 'raceText')));
   var okfuel = JSON.parse(JSON.stringify(race)); okfuel['DataCorePlugin.Computed.Fuel_RemainingLaps'] = 9; assert.strictEqual(one(okfuel, 'rangeText'), 'FUEL RANGE  reaches the end'); assert.strictEqual(one(okfuel, 'toAddText'), '24.0 L'.replace('24.0', Math.max(0, 6 * 11.17 - 43.1).toFixed(1)));
 });
@@ -188,6 +188,84 @@ t('ACC lower-case slipAngle01 (catalog spelling) reads as degrees; fuel range ba
   assert.strictEqual(one(p, 'slipText', 0), (0.1 * 180 / Math.PI).toFixed(1) + '\u00b0');
   var f = { 'DataCorePlugin.CurrentGame': AC, 'DataCorePlugin.Computed.Fuel_LitersPerLap': 0, 'DataCorePlugin.Computed.Fuel_RemainingLaps': 0 }; f[G + 'Fuel'] = 40; f[G + 'CompletedLaps'] = 3; f[G + 'RemainingLaps'] = 6;
   assert.strictEqual(one(f, 'rangeFrac'), 0); assert.strictEqual(one(f, 'rangeColor'), '#FF2A2A31');
+});
+// ---- the annotated-screenshot round -------------------------------------------------------------------------------------------------------------
+// drive(frames, keys): each key has its own root, like separate formulas in SimHub; one frame = 100 ms
+function drive(frames, keys) {
+  var ctx = makeCtx({}), roots = keys.map(function () { return {}; }), out = [], n, k;
+  ctx.__r = roots;
+  for (n = 0; n < frames.length; n++) {
+    ctx.$prop = (function (p) { return function (nm) { return p.hasOwnProperty(nm) ? p[nm] : undefined; }; })(frames[n]); ctx.__now += 100;
+    for (k = 0; k < keys.length; k++) { ctx.__k = keys[k][0]; ctx.__i = keys[k][1]; ctx.__ri = k; out[k] = vm.runInContext('tms2(__k, __r[__ri], __i)', ctx); }
+  }
+  return out;
+}
+function acFrame(lap, t, idx, ls, last) {
+  var p = { 'DataCorePlugin.CurrentGame': AC }; p[G + 'CompletedLaps'] = lap; p[G + 'CurrentLapTime'] = t; p[G + 'LastLapTime'] = last || 0; p[G + 'CurrentSectorIndex'] = idx; p[G + 'LastSectorTime'] = ls || 0;
+  p[G + 'Sector1BestTime'] = 20.3; p[G + 'BestLapTime'] = 61.4; return p;
+}
+function lapFrames() {       // AC lap 3 (2 completed): sectors of 20.3, 20.7 and 20.4 s, then lap 4 begins
+  var fr = [], t, last = 61.4;
+  for (t = 0; t < 61.4; t += 0.1) { fr.push(acFrame(2, t, t < 20.3 ? 0 : (t < 41.0 ? 1 : 2), t < 20.3 ? 0 : (t < 41.0 ? 20.3 : 20.7))); }
+  for (t = 0; t < 3; t += 0.1) { fr.push(acFrame(3, t, 0, 20.7, last)); }
+  return fr;
+}
+t('AC sectors: timed from the sector index when the game gives no Sector1Time; last lap shows dim until replaced', function () {
+  var keys = [['sector', 0], ['sector', 1], ['sector', 2], ['sectorColor', 0], ['sectorColor', 2]], mid = lapFrames().slice(0, 450), a = drive(mid, keys), b = drive(lapFrames(), keys);
+  assert.strictEqual(a[0], '20.30'); assert.strictEqual(a[1], '20.70'); assert.ok(/^[0-9]\.[0-9]{2}$/.test(a[2]), 'sector 3 is running: ' + a[2]); assert.strictEqual(a[3], '#FFB66DFF', 'sector 1 equals the best, purple');
+  assert.strictEqual(b[2], '20.40', 'last sector = lap time minus the first two, shown for the finished lap'); assert.strictEqual(b[4], '#FF80808B', 'and dim');
+  assert.ok(/^[0-9]\.[0-9]{2}$/.test(b[0]) || b[0] === '20.30', 'sector 1 of the new lap is running or still last lap: ' + b[0]);
+});
+t('AC sectors with no sector index at all show dashes, no throw', function () {
+  var p = { 'DataCorePlugin.CurrentGame': AC }; p[G + 'CurrentLapTime'] = 12; p[G + 'CompletedLaps'] = 2;
+  assert.deepStrictEqual(drive([p, p, p], [['sector', 0], ['sector', 2]]), ['--', '--']);
+});
+t('lap history: last five laps from the tracker, lap numbers, delta and colour; row 0 falls back to the last lap', function () {
+  var p = { 'DataCorePlugin.CurrentGame': AC }, PT = 'PersistantTrackerPlugin.', i;
+  p[G + 'CompletedLaps'] = 6; p[G + 'BestLapTime'] = 61.2; p[G + 'LastLapTime'] = 61.9;
+  for (i = 0; i < 5; i++) { p[PT + 'PreviousLap_0' + i] = 61.9 + i * 0.1; p[PT + 'PreviousLap_0' + i + '_DeltaToSessionBest'] = i === 3 ? 0 : 0.7 + i * 0.1; }
+  var o = drive([p], [['hlLap', 0], ['hlTime', 0], ['hlDelta', 0], ['hlLap', 4], ['hlDelta', 3], ['hlColor', 3], ['hlColor', 0]]);
+  assert.deepStrictEqual(o.slice(0, 5), ['L6', '1:01.900', '+0.700', 'L2', '+0.000']); assert.strictEqual(o[5], '#FFB66DFF'); assert.strictEqual(o[6], '#FFFF8A1F');
+  var q = { 'DataCorePlugin.CurrentGame': AC }; q[G + 'CompletedLaps'] = 2; q[G + 'LastLapTime'] = 62.5; q[G + 'BestLapTime'] = 62.0;
+  assert.deepStrictEqual(drive([q], [['hlLap', 0], ['hlTime', 0], ['hlDelta', 0], ['hlLap', 1]]), ['L2', '1:02.500', '+0.500', '']);      // only row 0 has the last-lap fallback; row 1 needs the tracker
+  assert.deepStrictEqual(drive([{ 'DataCorePlugin.CurrentGame': AC }], [['hlLap', 0], ['hlTime', 3]]), ['', '']);
+});
+t('header: AC shows LAP and LAST LAP where ACC shows the gaps; practice session shows elapsed time', function () {
+  var a = { 'DataCorePlugin.CurrentGame': AC }; a[G + 'CurrentLap'] = 3; a[G + 'TotalLaps'] = 0; a[G + 'LastLapTime'] = 111.553;
+  assert.deepStrictEqual(drive([a], [['hdrALabel', 0], ['hdrA', 0], ['hdrBLabel', 0], ['hdrB', 0]]), ['LAP', '3', 'LAST LAP', '1:51.55']);
+  a[G + 'TotalLaps'] = 34; assert.strictEqual(drive([a], [['hdrA', 0]])[0], '3 / 34');
+  var c = { 'DataCorePlugin.CurrentGame': 'AssettoCorsaCompetizione' }; c['DataCorePlugin.GameRawData.Graphics.gapAhead'] = 2200; c['DataCorePlugin.GameRawData.Graphics.gapBehind'] = 2600;
+  assert.deepStrictEqual(drive([c], [['hdrALabel', 0], ['hdrA', 0], ['hdrBLabel', 0], ['hdrB', 0]]), ['GAP AHEAD', '-2.2s', 'GAP BEHIND', '+2.6s']);
+});
+t('grip use: one huge slip spike does not pin the reference peak (the 1% / 0% cards)', function () {
+  var fr = [], i, p;
+  for (i = 0; i < 400; i++) { p = { 'DataCorePlugin.CurrentGame': AC, 'DataCorePlugin.GameData.CarId': 'x' }; for (var k = 1; k <= 4; k++) { p[P + 'WheelSlip0' + k] = i === 300 ? 40 : 0.4 + 0.1 * Math.sin(i / 7); } fr.push(p); }
+  var o = drive(fr.slice(0, 100), [['grip', 0]]); assert.strictEqual(o[0], null, 'still learning in the first 100 samples');
+  o = drive(fr, [['grip', 0], ['gripText', 0]]); assert.ok(o[0] > 0.3, 'grip use after a spike must stay readable, got ' + o[0]); assert.ok(/^[0-9]+%$/.test(o[1]));
+});
+t('delta chart range follows the data in 0.5 s steps and never drops below +-1 s', function () {
+  var fr = [], i, p;
+  for (i = 0; i < 40; i++) { p = { 'DataCorePlugin.CurrentGame': AC }; p[G + 'BestLapTime'] = 111.5; p['PersistantTrackerPlugin.SessionBestLiveDeltaSeconds'] = -6.73; fr.push(p); }
+  assert.deepStrictEqual(drive(fr, [['deltaRange', 0], ['deltaLo', 0], ['deltaHiText', 0], ['deltaLoText', 0]]), [8.5, -8.5, '+8.5s', '-8.5s']);
+  assert.strictEqual(drive([{ 'DataCorePlugin.CurrentGame': AC }], [['deltaRange', 0]])[0], 1);
+});
+t('braking zones, events and lock-ups from the simulated lap: each row formula builds the same list on its own', function () {
+  var ctx0 = makeCtx({}), sim = vm.runInContext('SIM.create()', ctx0), fr = [], n, res;
+  ctx0.__sim = sim; for (n = 0; n < 60 * 45; n++) { res = vm.runInContext('SIM.step(__sim, 1/60)', ctx0); fr.push(accProps(res.frame)); }
+  // one 60 fps frame per call here, so use a drive() that advances 16 ms
+  var ctx = makeCtx({}), roots = [{}, {}, {}, {}, {}], keys = [['znRow', 0], ['znRow', 1], ['znColor', 0], ['evRow', 0], ['lockText', 0]], out = [], k;
+  ctx.__r = roots;
+  for (n = 0; n < fr.length; n++) { ctx.$prop = (function (p) { return function (nm) { return p.hasOwnProperty(nm) ? p[nm] : undefined; }; })(fr[n]); ctx.__now += 16; for (k = 0; k < keys.length; k++) { ctx.__k = keys[k][0]; ctx.__i = keys[k][1]; ctx.__ri = k; out[k] = vm.runInContext('tms2(__k, __r[__ri], __i)', ctx); } }
+  assert.ok(/#\s*\d+ +\d+> *\d+ +\d+% \d\.\dg \d\.\ds/.test(out[0]), 'zone row: ' + out[0]); assert.ok(out[1] === '' || /#/.test(out[1]), 'row 2: ' + out[1]);
+  assert.ok(/^#FF/.test(out[2])); assert.ok(out[3] !== '', 'event row: ' + out[3]); assert.ok(/^LOCK-UPS THIS LAP +FL \d +FR \d +RL \d +RR \d$/.test(out[4]), out[4]);
+});
+t('track map: dots remember the lap, share one scale, stay inside 0..1; nothing is drawn before 30 m of path', function () {
+  var fr = [], i, p, u, a;
+  for (i = 0; i < 400; i++) { u = i / 400; a = 2 * Math.PI * u; p = { 'DataCorePlugin.CurrentGame': AC }; p['DataCorePlugin.GameRawData.Graphics.NormalizedCarPosition'] = u; p[G + 'CarCoordinates01'] = 300 * Math.cos(a); p[G + 'CarCoordinates03'] = 150 * Math.sin(a); fr.push(p); }
+  var o = drive(fr, [['mapX', 0], ['mapY', 0], ['mapCol', 0], ['mapX', 36], ['mapY', 36], ['carX', 0], ['carCol', 0]]);
+  o.slice(0, 2).concat(o.slice(3, 6)).forEach(function (v) { assert.ok(v >= 0 && v <= 1, 'inside the box: ' + v); });
+  assert.strictEqual(o[2], '#FF6A6A76'); assert.strictEqual(o[6], '#FFF3FF3D'); assert.ok(Math.abs(o[3] - 0) < 0.05, 'half a lap round: x at the far end ' + o[3]);
+  assert.strictEqual(drive([fr[0], fr[1]], [['mapCol', 0]])[0], '#00000000');
 });
 var fail = 0;
 tests.forEach(function (x) { try { x[1](); console.log('ok   ' + x[0]); } catch (e) { fail++; console.log('FAIL ' + x[0] + '\n     ' + e.message); } });

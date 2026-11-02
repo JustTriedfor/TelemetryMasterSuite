@@ -1,21 +1,13 @@
 {
- "items": 621,
+ "items": 700,
  "report": {
-  "live": 271,
-  "static": 303,
+  "live": 541,
+  "static": 284,
   "plugin": [
-   "lap history table",
-   "best-lap comparison on brake cards",
-   "braking-zone roadbook",
-   "steer reversals, throttle smoothness",
-   "event log",
-   "lock-up counters",
    "best-lap dashed overlay on pedal graph",
-   "bottom-out / top-out counters",
-   "track map",
-   "best-lap overlay on brake trace"
+   "bottom-out / top-out counters"
   ],
-  "charts": 33,
+  "charts": 30,
   "images": 7
  }
 }
