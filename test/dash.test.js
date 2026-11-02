@@ -104,11 +104,11 @@ t('banked corner: a 14 degree absolute roll with level suspension draws no body 
 });
 t('attitude: right side more compressed leans right, rear more compressed is nose up, drawing is clamped', function () {
   var p = susp(0.05, 0.07, 0.05, 0.07); p['DataCorePlugin.CurrentGame'] = AC;           // FL=.05 FR=.07 RL=.05 RR=.07 -> right compressed 20 mm
-  var roll = Math.atan2(0.02, 1.6) * 180 / Math.PI; assert.ok(Math.abs(one(p, 'rollRot') - roll * 6) < 1e-6);
+  var roll = Math.atan2(0.02, 1.6) * 180 / Math.PI; assert.ok(Math.abs(one(p, 'rollRot') - roll * 1) < 1e-6);
   var q = susp(0.07, 0.07, 0.05, 0.05); q['DataCorePlugin.CurrentGame'] = AC;           // rear (set via args order below) compressed more
   q = {}; q['DataCorePlugin.CurrentGame'] = AC; q[P + 'SuspensionTravel01'] = 0.05; q[P + 'SuspensionTravel02'] = 0.05; q[P + 'SuspensionTravel03'] = 0.08; q[P + 'SuspensionTravel04'] = 0.08;
   assert.ok(one(q, 'pitchRot') > 0, 'nose up'); assert.ok(/^PITCH \+/.test(one(q, 'pitchText')));
-  var big = susp(0.0, 0.5, 0.0, 0.5); big['DataCorePlugin.CurrentGame'] = AC; assert.strictEqual(one(big, 'rollRot'), 25);
+  var big = susp(0.0, 1.0, 0.0, 1.0); big['DataCorePlugin.CurrentGame'] = AC; assert.strictEqual(one(big, 'rollRot'), 25);
   assert.strictEqual(one({ 'DataCorePlugin.CurrentGame': AC }, 'rollRot'), 0); assert.strictEqual(one({ 'DataCorePlugin.CurrentGame': AC }, 'rollText'), 'n/a');
 });
 t('fuel: laps to go from the race, else from session time, else the plan; fuel to add follows', function () {
@@ -305,6 +305,79 @@ t('lap history gap bars: stub for the best lap, longer for slower laps, scaled t
   for (i = 0; i < 5; i++) { p[PT + 'PreviousLap_0' + i] = 100 + d[i]; p[PT + 'PreviousLap_0' + i + '_DeltaToSessionBest'] = d[i]; }
   assert.deepStrictEqual(drive([p], [['hlBar', 0], ['hlBar', 1], ['hlBar', 2], ['hlBar', 3], ['hlBar', 4]]), [3, 75, 150, 300, 38]);
   assert.strictEqual(drive([{ 'DataCorePlugin.CurrentGame': AC }], [['hlBar', 0]])[0], 0);
+});
+t('tweak round: tyre load split never shows NaN (idle game: all loads 0), wording, G-force peaks reset per lap and ignore spikes', function () {
+  var p = { 'DataCorePlugin.CurrentGame': AC }, k;
+  for (k = 1; k <= 4; k++) { p[P + 'WheelLoad0' + k] = 0; }
+  assert.strictEqual(drive([p], [['loadShare', 0]])[0], 'no tyre load');
+  p[P + 'WheelLoad01'] = 5615; p[P + 'WheelLoad02'] = 964; p[P + 'WheelLoad03'] = 6838; p[P + 'WheelLoad04'] = 1639;
+  assert.strictEqual(drive([p], [['loadShare', 0]])[0], 'FRONT 44%  REAR 56%     LEFT 83%  RIGHT 17%');
+  assert.strictEqual(drive([p], [['loadBar', 2], ['loadN', 2]]).join('|'), (6838 / 8000) + '|6838');
+  function gf(lat, lon, lap) { var q = { 'DataCorePlugin.CurrentGame': AC }; q[P + 'AccG01'] = lat; q[P + 'AccG03'] = lon; q[G + 'CompletedLaps'] = lap; return q; }
+  var keys = [['peakLatText', 0], ['peakBrkGText', 0], ['peakAccText', 0], ['latGDir', 0], ['lonGDir', 0], ['latGText', 0]];
+  var o = drive([gf(0.5, -0.2, 3), gf(1.4, -1.8, 3), gf(-1.7, 0.6, 3), gf(40, -54, 3), gf(0.2, 0.1, 3)], keys);
+  assert.deepStrictEqual(o.slice(0, 3), ['1.70 g', '1.80 g', '0.60 g'], 'peaks, with the 40 g and 54 g spikes ignored: ' + o.join('|'));
+  o = drive([gf(0.5, -0.2, 3), gf(1.4, -1.8, 3), gf(0.3, 0.2, 4)], keys); assert.deepStrictEqual(o.slice(0, 3), ['0.30 g', '0.00 g', '0.20 g'], 'a new lap starts the peaks again: ' + o.join('|'));
+  assert.strictEqual(drive([gf(1.2, 0, 1)], [['latGDir', 0]])[0], '◄ LEFT'); assert.strictEqual(drive([gf(-1.2, 0, 1)], [['latGDir', 0]])[0], 'RIGHT ►'); assert.strictEqual(drive([gf(0.01, 0, 1)], [['latGDir', 0]])[0], '');
+});
+t('slip statistics: peak slip angle and time sliding count up within a lap and restart on the next; corners are classified when they end', function () {
+  var fr = [], i, p, k;
+  for (i = 0; i < 120; i++) {      // 12 s: a steady corner with the front sliding more than the rear (understeer), then a straight
+    p = { 'DataCorePlugin.CurrentGame': AC }; p[G + 'CompletedLaps'] = 2; p[G + 'SpeedKmh'] = 100; p[P + 'AccG01'] = i < 80 ? 1.2 : 0.05;
+    for (k = 1; k <= 4; k++) { p[P + 'WheelSlip0' + k] = i < 80 ? (k <= 2 ? 0.12 : 0.05) : 0.01; }
+    fr.push(p);
+  }
+  var o = drive(fr, [['cornerCountText', 0], ['cornerLastText', 0], ['cornerLastColor', 0]]);
+  assert.strictEqual(o[0], 'US 1   OS 0   N 0', o.join('|')); assert.ok(/^UNDERSTEER [0-9.]+°$/.test(o[1]), o[1]); assert.strictEqual(o[2], '#FFFF8A1F');
+  assert.ok(/^[0-9]+.[0-9]°$/.test(drive(fr, [['betaPeakText', 0]])[0])); assert.ok(/^[0-9]+.[0-9] s$/.test(drive(fr, [['slideTimeText', 0]])[0]));
+});
+t('lap statistics: sector deltas, theoretical best, average and spread of the last five laps (an out-lap beyond 107% is left out)', function () {
+  var fr = lapSeq(1, 3, 0, 0), keys = [['sdTime', 1], ['sdDelta', 1], ['sdColor', 1], ['theoText', 0], ['theoGapText', 0], ['avgText', 0], ['spreadText', 0]], p = fr[fr.length - 1], PT = 'PersistantTrackerPlugin.', i, tt = [98.5, 98.9, 99.1, 138.0, 98.7];
+  p[G + 'Sector1BestTime'] = 20.2; p[G + 'Sector2BestTime'] = 20.5; p[G + 'Sector3BestLapTime'] = 20.3; p[G + 'BestLapTime'] = 61.5; p[G + 'CompletedLaps'] = 7;
+  for (i = 0; i < 5; i++) { p[PT + 'PreviousLap_0' + i] = tt[i]; p[PT + 'PreviousLap_0' + i + '_DeltaToSessionBest'] = tt[i] - 98.5; }
+  var o = drive(fr.slice(0, -1).concat([p]), keys);
+  assert.strictEqual(o[3], '1:01.000'); assert.strictEqual(o[4], '-0.500 s possible'); assert.strictEqual(o[1], '+0.200'); assert.strictEqual(o[2], '#FFFF8A1F');
+  var avg = (98.5 + 98.9 + 99.1 + 98.7) / 4, sd = Math.sqrt([98.5, 98.9, 99.1, 98.7].reduce(function (s, x) { return s + (x - avg) * (x - avg); }, 0) / 4);
+  assert.strictEqual(o[5], 'AVG  1:38.800'); assert.strictEqual(o[6], 'SPREAD  ±' + sd.toFixed(2) + ' s');
+  assert.deepStrictEqual(drive([{ 'DataCorePlugin.CurrentGame': AC }], [['theoText', 0], ['avgText', 0], ['spreadText', 0], ['sdDelta', 0]]), ['--:--.---', 'AVG  --', 'SPREAD  --', '']);
+});
+// corner log: frames of AC data (WheelSlip as the slip), 100 ms each
+function cornerFrames(lap, spec) {      // spec: [seconds, km/h, lat g, steer, front slip, rear slip, slowest km/h]
+  var fr = [], i, k, p, n;
+  spec.forEach(function (c) {
+    n = Math.round(c[0] * 10);
+    for (i = 0; i < n; i++) {
+      p = { 'DataCorePlugin.CurrentGame': AC }; p[G + 'CompletedLaps'] = lap; p[G + 'SpeedKmh'] = i === 3 && c[6] ? c[6] : c[1]; p[P + 'AccG01'] = c[2]; p[P + 'SteerAngle'] = c[3];
+      for (k = 1; k <= 4; k++) { p[P + 'WheelSlip0' + k] = k <= 2 ? c[4] : c[5]; }
+      fr.push(p);
+    }
+  });
+  return fr;
+}
+t('corner log: each corner is filed when it ends with lap, number, slowest speed, peak g, peak steering and the balance verdict; blips are ignored; newest first', function () {
+  var S = [0.05, 0.01], fr = cornerFrames(4, [[2, 160, 0.05, 0, 0.01, 0.01], [4, 100, 1.5, -0.4, 0.12, 0.05, 90], [2, 160, 0.05, 0, 0.01, 0.01], [0.5, 100, 1.2, -0.3, 0.1, 0.1], [2, 160, 0.05, 0, 0.01, 0.01],
+    [4, 140, -1.3, 0.3, 0.04, 0.11], [2, 160, 0.05, 0, 0.01, 0.01], [4, 120, 1.1, -0.2, 0.11, 0.04], [2, 160, 0.05, 0, 0.01, 0.01]]);
+  var keys = [['cnRow', 0], ['cnRow', 1], ['cnRow', 2], ['cnRow', 3], ['cnColor', 0], ['cnColor', 1], ['cnColor', 3], ['cnTrend', 0], ['cnTrendColor', 0], ['cornerLastText', 0]], o = drive(fr, keys);
+  assert.ok(/^ L5 C03 120 1\.10  54° +-- US [34]\.\d°$/.test(o[0]), 'newest: ' + JSON.stringify(o[0]));
+  assert.ok(/^ L5 C02 140 1\.30  81° +-- OS [34]\.\d°$/.test(o[1]), 'second: ' + JSON.stringify(o[1]));
+  assert.ok(/^ L5 C01  90 1\.50 108° +-- US [34]\.\d°$/.test(o[2]), 'first: ' + JSON.stringify(o[2]));
+  assert.strictEqual(o[3], '', 'only three corners were filed (the half-second blip is not one)');
+  assert.deepStrictEqual(o.slice(4, 7), ['#FFFF8A1F', '#FFFF3D5A', '#FF80808B'], o.slice(4, 7).join('|'));
+  assert.ok(/^TREND  UNDERSTEER [01]\.\d°  \(last 3\)$/.test(o[7]), o[7]); assert.strictEqual(o[8], '#FFFF8A1F');
+  assert.ok(/^UNDERSTEER [34]\.\d°$/.test(o[9]) && o[0].slice(-7) === o[9].replace('UNDERSTEER', 'US'), 'the last-corner card and the first log row agree: ' + o[9] + ' / ' + o[0]);
+  assert.deepStrictEqual(drive(fr.slice(0, 15), [['cnRow', 0], ['cnTrend', 0], ['cnTrendColor', 0]]), ['no corner yet (30 km/h and 0.3 g)', 'TREND  needs 3 corners', '#FF80808B']);
+  var q = cornerFrames(4, [[4, 100, 1.5, -0.4, 0.12, 0.05], [2, 160, 0.05, 0, 0.01, 0.01]]); q.forEach(function (p) { p[G + 'CurrentLap'] = 7; });
+  assert.ok(/^ L7 C01/.test(drive(q, [['cnRow', 0]])[0]), 'the lap in progress is CurrentLap when the game gives it');
+});
+t('corner log: a two-sample spike (kerb strike) does not set the peak g; a third sample does', function () {
+  var mk = function (n) { var fr = cornerFrames(4, [[4, 100, 1.5, -0.4, 0.12, 0.05], [2, 160, 0.05, 0, 0.01, 0.01]]), k; for (k = 0; k < n; k++) { fr[10 + k][P + 'AccG01'] = 4; } return fr; };
+  assert.ok(/ 1\.50 /.test(drive(mk(2), [['cnRow', 0]])[0]), drive(mk(2), [['cnRow', 0]])[0]);
+  assert.ok(/ 4\.00 /.test(drive(mk(3), [['cnRow', 0]])[0]), drive(mk(3), [['cnRow', 0]])[0]);
+});
+t('event log lap numbers are the lap in progress (what the header shows), not the completed count', function () {
+  var fr = cornerFrames(4, [[1, 150, 0.05, 0, 0.01, 0.01]]).concat(cornerFrames(4, [[2, 150, 0.05, 0, 0.01, 0.01]]).map(function (p) { p[G + 'Brake'] = 100; p[G + 'Throttle'] = 0; p[G + 'ABSActive'] = true; return p; }));
+  var o = drive(fr.concat(cornerFrames(4, [[1, 150, 0.05, 0, 0.01, 0.01]])), [['evRow', 0]]);
+  assert.ok(/^L5 /.test(o[0]), 'event row: ' + o[0]);
 });
 var fail = 0;
 tests.forEach(function (x) { try { x[1](); console.log('ok   ' + x[0]); } catch (e) { fail++; console.log('FAIL ' + x[0] + '\n     ' + e.message); } });

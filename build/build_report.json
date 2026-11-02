@@ -1,13 +1,13 @@
 {
- "items": 705,
+ "items": 681,
  "report": {
-  "live": 551,
-  "static": 284,
+  "live": 372,
+  "static": 291,
   "plugin": [
    "best-lap dashed overlay on pedal graph",
    "bottom-out / top-out counters"
   ],
-  "charts": 30,
-  "images": 7
+  "charts": 28,
+  "images": 6
  }
 }

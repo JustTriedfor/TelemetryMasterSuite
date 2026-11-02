@@ -17,7 +17,7 @@ Options: `?t=25.5&pause=1`, `&mode=acc|ac|iracing`, `&cal=1`. Earlier versions: 
 |---|---|---|
 | Driver inputs | Throttle/brake and steer, rolling 20 s, best lap dashed | Steering wheel that turns with your input, plus live throttle/brake/clutch bars |
 | Dynamics | Lateral g, longitudinal g, yaw rate (6 s) | Car with a load bar on each corner and front/rear, left/right shares (iRacing: estimated load centre) |
-| Suspension and ride | Four damper-travel traces with bottoming/topping bands and counters | Side-view car that pitches and rear-view car that rolls, drawn x10 with numbers |
+| Suspension and ride | Four damper-travel traces with bottoming/topping bands and counters | Side-view car that pitches and rear-view car that rolls, drawn at true angle (1x) with numbers |
 | Fuel and strategy | Numbers: fuel laps left, per-lap average, race laps left, fuel to add | Race timeline (laps done, current lap, finish) over a fuel-range bar; shows "empty at lap N, short by X" and a PIT WINDOW |
 | Systems, events and track | Oil/water/boost with 90 s sparklines, last 3 events | Track map: your position, braking zones from your last lap (dim) and this lap (red), incidents as triangles, S/F and sector marks |
 
@@ -54,7 +54,7 @@ Caveats: zones are matched to the best lap **by zone number**, so if you brake i
 The drawn rectangles are replaced by the supplied line drawings (Porsche 911 GT3 RS sheet, kept at `mock/assets/car_sheet.webp`). `tools/cut_cars.py` cuts the four views out, drops the "FIG." labels and the partial drawing at the top of the sheet, and turns the black-on-white lines into light-on-transparent PNGs: `car_top.png` (344x765), `car_side.png` (773x233, nose left), `car_rear.png` (462x305), `car_front.png` (459x307).
 - **Slip view:** top view with the slip wedge, nose arrow and travel arrow over it; the four grip indicators (grey while learning, then green/orange/red; red on lock-up) sit just outside the body at the axle positions of the drawing (axles at 23.5 % and 76.5 % of the car length); the load-centre dot sits on the car.
 - **Dynamics load widget:** the same top view, with a load bar at each axle.
-- **Suspension attitude widget:** the side view tilts with pitch (nose-up positive, drawn x10) and the rear view with roll (drawn x6, so it stays inside the box).
+- **Suspension attitude widget:** the side view tilts with pitch (nose-up positive, drawn 1x, the true angle) and the rear view with roll (also 1x; it was x10 and x6 at first, which made a small bump look like take-off).
 - **Front view (`car_front.png`)** is cut and ready but not placed anywhere yet.
 - The mock's simulated pitch is now nose-up when accelerating and nose-down when braking, as on a real car. What ACC and iRacing actually report is unverified (TO_VERIFY section J).
 

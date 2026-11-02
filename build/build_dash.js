@@ -5,6 +5,18 @@ var I = require('./items.js');
 var root = path.join(__dirname, '..');
 var G = JSON.parse(fs.readFileSync(path.join(__dirname, 'geometry.json'), 'utf8'));
 var byId = {}; G.forEach(function (e) { if (e.id) { byId[e.id] = e; } });
+(function relayout() {
+  var DY = 54, pIn = byId.pIn, pDyn = byId.pDyn, pSusp = byId.pSusp, lg, sw;
+  G.forEach(function (e) { var d = byId.drv; if (e.i >= d.i && e.i < pDyn.i && e.y >= d.y - 2 && e.y <= d.y + d.h + 2) { e.skip = true; } });      // the row's own elements
+  pIn.h -= DY;                                                          // the row of overlap / steer reversal / throttle numbers is gone
+  G.forEach(function (e) { if (e.i > pDyn.i && e.i < pSusp.i) { e.y -= DY; } });
+  pDyn.y -= DY; pDyn.h += DY;                                            // the dynamics panel grows upward into the freed space
+  byId.cDyn.w = 192; byId.cDyn.h = 192;                                  // 1:1 graph
+  lg = G.filter(function (e) { return e.tag === 'div' && /(^| )legend( |$)/.test(e.cls); })[0];
+  sw = G.filter(function (e) { return e.tag === 'i' && e.i > lg.i && e.y >= lg.y - 1 && e.y <= lg.y + lg.h && e.x >= lg.x - 1 && e.x < lg.x + lg.w; }).sort(function (a, b) { return a.x - b.x; });
+  sw[1].skip = true; sw[2].skip = true; sw[3].x = sw[1].x; sw[0].lab = 'beta °'; sw[3].lab = 'steer';               // the slip view's pedal graph is gone: only beta and steer stay in its legend
+  byId.mapSub.skip = true;                                                // "lap position" belonged to the track map
+})();
 var items = [], report = { live: 0, static: 0, plugin: [], charts: 0, images: 0 };
 var CC = ['#4CC9F0', '#7BF1A8', '#F6A5FF', '#FFD166'], W4 = ['FL', 'FR', 'RL', 'RR'];
 var C = { panel: '#121215', border: '#26262D', top: '#34343C', card: '#18181C', track: '#23232A', dim: '#80808B', white: '#F6F6F1', text: '#D6D6DC', y: '#F3FF3D', ok: '#38E08C', warn: '#FF8A1F', bad: '#FF3D5A', cold: '#5DB3FF', thr: '#38E08C', brake: '#FF3D5A', steer: '#AEBBD6', lat: '#3DD6D0', lon: '#8F8CFF', yaw: '#B66DFF' };
@@ -22,7 +34,7 @@ function para(x, y, w, str, o) {
   words.forEach(function (wd) { if ((line + ' ' + wd).trim().length > cpl) { lines.push(line); line = wd; } else { line = (line + ' ' + wd).trim(); } }); if (line) { lines.push(line); }
   for (k = 0; k < lines.length; k++) { label(x, y + k * ((o.fs || 12) + 4), w, (o.fs || 12) + 4, lines[k], o); }
 }
-var MAXCH = {"hdrA":"-99.9s","hdrB":"99:59.99","hdrALabel":"GAP BEHIND","hdrBLabel":"GAP BEHIND","sessLabel":"SESSION LEFT","hlLap":"L99","hlTime":"99:59.999","hlDelta":"+99.999","znRow":"> #99 312>298 100% 2.5g 9.9s A99 L","evRow":"L99   LOCK-UP FL","lockText":"LOCK-UPS THIS LAP    FL 99    FR 99    RL 99    RR 99","revText":"999","smoothText":"99.9/s","engText":"OIL 999\u00b0    WATER 999\u00b0","fuelMargin":"SHORT by 99.9 laps","deltaHiText":"+99.5s","deltaLoText":"-99.5s","wearLabel":"WEAR","pos":"P99","gapA":"-99.9s","gapB":"+99.9s","flag":"CHEQUERED","sessLeft":"999:59","temps":"99° / 99°","dataTag":"AC: slip est.","deltaText":"+99.999","deltaLabel":"LAP TIME (no best lap yet)","predLap":"99:59.999","bestLap":"99:59.999","lastLap":"99:59.999","curLap":"99:59.999","lapSub":"lap 99 | best-lap overlays need the plugin","betaText":"-99.9°","bandWord":"◐ TRANSITION","balWord":"UNDERSTEER","balTag":"FROM TYRE SLIP","coreText":"999° ▲","pressText":"99.9 psi","pressDeltaText":"-9.9","wearText":"100.0%","slipText":"-99.9°","loadText":"9999 N","travelText":"999 mm","gripTag":"grip 100%","gripText":"100%","discText":"999°","discWord":"▲▲ FADE RISK","discPeak":"999°","discRate":"▲999°/s","padDisc":"999 / 999","sector":"99:59.99","sectorBest":"best 99:59.99","oilText":"999°","waterText":"999°","boostText":"9.99","fuelText":"99.9 L","lplText":"99.99 L","lapsLeftText":"999.9","raceLapsLeft":"99 (plan)","toAddText":"999.9 L","raceText":"TO GO  99 laps  (session time)","rangeText":"FUEL RANGE  short by 99.9 laps","steerText":"L 999°","steerRawText":"raw -9.99","pitchText":"PITCH -9.99°","rollText":"ROLL -9.99°","loadShare":"F 99%  R 99%     L 99%  R 99%","ovlTime":"99.99s","absHits":"hits this lap 999","absWord":"ACTIVE","peakBrake":"100%","trailTime":"999.99s","peakDecel":"9.99 g","bias":"99.9%","thrPct":"100%","brkPct":"100%","cluPct":"100%","loadN":"9999","gear":"N","speed":"999","rpm":"99999","treadIText":"999°","treadMText":"999°","treadOText":"999°"};
+var MAXCH = {"cnRow":"L99 C99 999 9.99 999° 99.9° OS 99.9°","cnTrend":"TREND  UNDERSTEER 99.9°  (last 8)","latGText":"9.99 g","latGDir":"\u25c4 BRAKING","lonGText":"9.99 g","lonGDir":"\u25c4 BRAKING","peakLatText":"9.99 g","peakBrkGText":"9.99 g","peakAccText":"9.99 g","peakYawText":"999\u00b0/s","betaPeakText":"99.9\u00b0","slideTimeText":"999.9 s","cornerLastText":"UNDERSTEER 99.9\u00b0","cornerCountText":"US 99   OS 99   N 99","sdTime":"99:59.99","sdDelta":"+99.999","theoText":"99:59.999","theoGapText":"-9.999 s possible","avgText":"AVG  99:59.999","spreadText":"SPREAD  \u00b199.99 s","hdrA":"-99.9s","hdrB":"99:59.99","hdrALabel":"GAP BEHIND","hdrBLabel":"GAP BEHIND","sessLabel":"SESSION LEFT","hlLap":"L99","hlTime":"99:59.999","hlDelta":"+99.999","znRow":"> #99 312>298 100% 2.5g 9.9s A99 L","evRow":"L99   99:59.99   LOCK-UP FL   999 km/h","lockText":"LOCK-UPS THIS LAP    FL 99    FR 99    RL 99    RR 99","revText":"999","smoothText":"99.9/s","engText":"OIL 999\u00b0    WATER 999\u00b0","fuelMargin":"SHORT by 99.9 laps","deltaHiText":"+99.5s","deltaLoText":"-99.5s","wearLabel":"WEAR","pos":"P99","gapA":"-99.9s","gapB":"+99.9s","flag":"CHEQUERED","sessLeft":"999:59","temps":"99° / 99°","dataTag":"AC: slip est.","deltaText":"+99.999","deltaLabel":"LAP TIME (no best lap yet)","predLap":"99:59.999","bestLap":"99:59.999","lastLap":"99:59.999","curLap":"99:59.999","lapSub":"lap 99 | best-lap overlays need the plugin","betaText":"-99.9°","bandWord":"◐ TRANSITION","balWord":"UNDERSTEER","balTag":"FROM TYRE SLIP","coreText":"999° ▲","pressText":"99.9 psi","pressDeltaText":"-9.9","wearText":"100.0%","slipText":"-99.9°","loadText":"9999 N","travelText":"999 mm","gripTag":"grip 100%","gripText":"100%","discText":"999°","discWord":"▲▲ FADE RISK","discPeak":"999°","discRate":"▲999°/s","padDisc":"999 / 999","sector":"99:59.99","sectorBest":"best 99:59.99","oilText":"999°","waterText":"999°","boostText":"9.99","fuelText":"99.9 L","lplText":"99.99 L","lapsLeftText":"999.9","raceLapsLeft":"99 (plan)","toAddText":"999.9 L","raceText":"TO GO  99 laps  (session time)","rangeText":"FUEL RANGE  short by 99.9 laps","steerText":"L 999°","steerRawText":"raw -9.99","pitchText":"PITCH -9.99°","rollText":"ROLL -9.99°","loadShare":"FRONT 100%  REAR 100%     LEFT 100%  RIGHT 100%","ovlTime":"99.99s","absHits":"hits this lap 999","absWord":"ACTIVE","peakBrake":"100%","trailTime":"999.99s","peakDecel":"9.99 g","bias":"99.9%","thrPct":"100%","brkPct":"100%","cluPct":"100%","loadN":"9999","gear":"N","speed":"999","rpm":"99999","treadIText":"999°","treadMText":"999°","treadOText":"999°"};
 function fit(it, key) {
   var m = MAXCH[key]; if (!m) { return; }
   var need = Math.ceil(m.length * it.FontSize * 0.56) + 6, d;
@@ -44,7 +56,7 @@ function zeroLine(c, o, v) { var p = plotRect(c, o), y = p.y + (1 - (v - o.min) 
 var T20 = [[0, '-20s'], [0.5, '-10'], [1, 'now']];
 
 // ---------- containers whose children are built by hand (their DOM content is generated by innerHTML in the mock) ----------
-var SKIP = ['secs', 'laps', 'brkStats', 'ovlCard', 'absCard', 'zones', 'drv', 'events', 'fuelL', 'inTop', 'lockRow', 'sys', 'ds0', 'ds1', 'ds2', 'ds3'].map(function (id) { return byId[id]; }).filter(Boolean);
+var SKIP = ['secs', 'laps', 'brkStats', 'ovlCard', 'absCard', 'zones', 'events', 'fuelL', 'inTop', 'lockRow', 'sys', 'ds0', 'ds1', 'ds2', 'ds3'].map(function (id) { return byId[id]; }).filter(Boolean);
 var SKIPPAD = { fuelL: 24 };
 function inSkip(e) { var cx = e.x + e.w / 2, cy = e.y + e.h / 2; return SKIP.some(function (s) { var pad = SKIPPAD[s.id] || 0; return e.i > s.i && cx >= s.x - 2 && cx <= s.x + s.w + 2 && cy >= s.y - 2 && cy <= s.y + s.h + 2 + pad; }); }
 
@@ -63,7 +75,7 @@ var PHN = ['STRAIGHT', 'BRAKING', 'TRAIL', 'COAST', 'ROTATION', 'POWER'];
 
 // ---------- 1. generic walk in DOM order ----------
 G.forEach(function (e) {
-  if (e.tag === 'canvas' || inSkip(e) || e.id === 'ctl' || e.tag === 'button' || e.w < 0.5 || e.h < 0.5) { return; }
+  if (e.tag === 'canvas' || e.skip || inSkip(e) || e.id === 'ctl' || e.tag === 'button' || e.w < 0.5 || e.h < 0.5) { return; }
   var isPanel = /(^| )p( |$)/.test(e.cls) && e.tag === 'section';
   if (isPanel) {
     add(I.rect(e.x, e.y, e.w, e.h, C.border)); add(I.rect(e.x + 1, e.y + 1, e.w - 2, e.h - 2, C.panel)); add(I.rect(e.x + 1, e.y + 1, e.w - 2, 2, C.top));
@@ -90,7 +102,8 @@ G.forEach(function (e) {
     if (ha === 2) { tx = e.x - pad; } else if (spec && ha === 0) { tw2 = e.w + pad; }
     var fw = I.weight(e.fw), col = e.color, str = e.text, va = e.h > e.fs * 1.9 ? 0 : 1;
     if (tx + tw2 > 1916) { tw2 = 1916 - tx; }
-    if (str === 'Systems, events and track') { str = 'Events and track'; }
+    if (str === 'Systems, events and track') { str = 'Events'; }
+    if (str === 'last 6 s, and load on each corner') { str = 'last 6 s'; }
     if (e.p === 'h3' && !/(^| )sub( |$)/.test(e.cls)) { str = str.toUpperCase(); fw = 'Bold'; }
     var fsz = e.fs, ty = e.y - 1, th = e.h + 2;
     if (/^gv[0-3]$/.test(e.id)) { fsz = 28; ty = e.y - 3; th = e.h + 6; }
@@ -107,7 +120,7 @@ G.forEach(function (e) {
     var box = G.filter(function (e) { return e.tag === 'div' && new RegExp('(^| )' + st.cls + '( |$)').test(e.cls); })[0];
     if (!box) { return; }
     var sw = G.filter(function (e) { return e.tag === 'i' && e.i > box.i && e.y >= box.y - 1 && e.y <= box.y + box.h && e.x >= box.x - 1 && e.x < box.x + box.w; }).sort(function (a, b) { return a.x - b.x; });
-    sw.forEach(function (e, k) { label(e.x + 18, box.y, 120, box.h, st.labels[k] || '', { fs: 11, fw: 'Normal', color: C.dim }); });
+    sw.forEach(function (e, k) { if (e.skip) { return; } label(e.x + 18, box.y, 120, box.h, e.lab !== undefined ? e.lab : (st.labels[k] || ''), { fs: 11, fw: 'Normal', color: C.dim }); });
   });
 })();
 
@@ -156,15 +169,20 @@ G.forEach(function (e) {
   label(c.x + 8, c.y + 20, c.w - 16, 12, '> = live now, newest first, A = ABS hits, L = lock-up', { fs: 11, color: '#6C6C78' });
   for (k = 0; k < 5; k++) { var zt = livetext(c.x + 8, c.y + 36 + k * 20, c.w - 16, 19, { fs: 13, fw: 'Bold', color: C.white, font: 'Consolas' }, 'znRow', k, 'znColor'); zt.MinimumRefreshIntervalMS = 100; }
 })();
-(function drv() {
-  var c = byId.drv, defs = [['PEDAL OVERLAP s', 'ovlTime'], ['STEER REVERSALS', 'revText'], ['THROTTLE SMOOTH', 'smoothText']], w = (c.w - 12) / 3;
-  defs.forEach(function (d, k) { var x = c.x + k * (w + 6); add(I.rect(x, c.y, w, c.h, C.card)); label(x + 8, c.y + 2, w - 60, 13, d[0], { fs: 11, color: C.dim }); if (d[1]) { livetext(x + w - 70, c.y + 3, 62, 22, { fs: 18, fw: 'Bold', color: C.white, ha: 2 }, d[1]); } else { label(x + w - 70, c.y + 3, 62, 22, 'plugin', { fs: 12, color: C.dim, ha: 2 }); } });
-})();
+(function drv() { /* removed on request: the useful numbers live in the braking analysis */ })();
 (function events() {
   var c = byId.sys, k, ev;
-  label(c.x, c.y, 200, 13, 'EVENT LOG  (this session, newest first)', { fs: 11, fw: 'SemiBold', color: C.dim });
-  for (k = 0; k < 6; k++) { ev = livetext(c.x, c.y + 17 + k * 17, 316, 17, { fs: 13, fw: 'Bold', color: C.text }, 'evRow', k, 'evColor'); ev.MinimumRefreshIntervalMS = 100; }
-  livetext(c.x, c.y + 121, 316, 14, { fs: 11, fw: 'SemiBold', color: C.dim }, 'engText');
+  label(c.x, c.y, 300, 13, 'EVENT LOG  (this session, newest first)', { fs: 11, fw: 'SemiBold', color: C.dim });
+  for (k = 0; k < 7; k++) { ev = livetext(c.x, c.y + 16 + k * 15, 290, 16, { fs: 13, fw: 'Bold', color: C.text }, 'evRow', k, 'evColor'); ev.MinimumRefreshIntervalMS = 100; }
+  livetext(c.x, c.y + 124, 290, 14, { fs: 11, fw: 'SemiBold', color: C.dim }, 'engText');
+})();
+(function corners() {          // beside the event log: one row per corner with the steering and balance numbers
+  var c = byId.sys, x = c.x + 298, y = c.y, w = 1903 - x, h = 136, k, r, F = { fs: 12, fw: 'Normal', color: C.dim, font: 'Consolas' };
+  add(I.rect(x, y, w, h, C.card)); add(I.rect(x, y, 3, h, '#3A3A42'));
+  label(x + 10, y + 3, w - 14, 13, 'CORNER LOG  (newest first, peaks held 0.3 s)', { fs: 11, fw: 'SemiBold', color: C.dim });
+  label(x + 10, y + 18, w - 14, 14, 'LAP C#  KMH LATG STEER SLIP BALANCE', F);
+  for (k = 0; k < 6; k++) { r = livetext(x + 10, y + 33 + k * 14, w - 14, 14, { fs: 12, fw: 'Bold', color: C.text, font: 'Consolas' }, 'cnRow', k, 'cnColor'); r.MinimumRefreshIntervalMS = 100; }
+  r = livetext(x + 10, y + 119, w - 14, 14, { fs: 12, fw: 'Bold', color: C.dim }, 'cnTrend', 0, 'cnTrendColor'); r.MinimumRefreshIntervalMS = 200;
 })();
 (function fuelL() {
   var c = byId.fuelL, rows = [['FUEL', 'fuelText'], ['PER LAP (3-lap avg)', 'lplText'], ['RACE LAPS LEFT', 'raceLapsLeft'], ['TO ADD TO FINISH', 'toAddText']], k;
@@ -192,13 +210,11 @@ G.forEach(function (e) {
 // ---------- 3. charts and widgets ----------
 var CV = byId;
 (function slipTrace() {
-  var c = CV.cSlip, top = { x: c.x, y: c.y, w: c.w, h: 144 }, bot = { x: c.x, y: c.y + 148, w: c.w, h: 78 };
-  var ob = { min: -15, max: 15, pl: 30, pb: 2, points: 180, ms: 33, color: C.y, thick: 2.5 }, os = { min: -1, max: 1, pl: 30, pb: 2, points: 180, ms: 33, color: C.steer, thick: 1.4 };
+  var c = CV.cSlip, top = { x: c.x, y: c.y, w: c.w, h: c.h };
+  var ob = { min: -15, max: 15, pl: 30, pb: 13, points: 180, ms: 33, color: C.y, thick: 2.5 }, os = { min: -1, max: 1, pl: 30, pb: 13, points: 180, ms: 33, color: C.steer, thick: 1.4 };
   band(top, ob, 4, 9, C.warn, 0.14); band(top, ob, 9, 15, C.bad, 0.14); band(top, ob, -9, -4, C.warn, 0.14); band(top, ob, -15, -9, C.bad, 0.14); zeroLine(top, ob, 0);
   chartAt(top, os, 'steer', 0, 'slip_steer'); chartAt(top, ob, 'beta', 0, 'slip_beta');
-  yLabel(top, ob, 10, '10°'); yLabel(top, ob, 0, '0°'); yLabel(top, ob, -10, '-10°');
-  var o1 = { min: 0, max: 1, pl: 30, pb: 13, points: 180, ms: 33, color: C.brake, thick: 1.8 }, o2 = { min: 0, max: 1, pl: 30, pb: 13, points: 180, ms: 33, color: C.thr, thick: 1.8 };
-  chartAt(bot, o1, 'brk', 0, 'slip_brake'); chartAt(bot, o2, 'thr', 0, 'slip_thr'); yLabel(bot, o1, 1, '100%'); yLabel(bot, o1, 0.5, '50%'); yLabel(bot, o1, 0, '0%'); xLabels(bot, o1, [[0, '-6s'], [0.5, '-3'], [1, 'now']]);
+  yLabel(top, ob, 10, '10\u00b0'); yLabel(top, ob, 5, '5\u00b0'); yLabel(top, ob, 0, '0\u00b0'); yLabel(top, ob, -5, '-5\u00b0'); yLabel(top, ob, -10, '-10\u00b0'); xLabels(top, ob, [[0, '-6s'], [0.5, '-3'], [1, 'now']]);
 })();
 (function pedals() {
   var c = CV.cPed, a = { x: c.x, y: c.y, w: c.w, h: 74 }, b = { x: c.x, y: c.y + 76, w: c.w, h: 36 };
@@ -207,10 +223,27 @@ var CV = byId;
   yLabel(a, o1, 1, '100%'); yLabel(a, o1, 0, '0%'); yLabel(b, o3, 0.6, 'L'); yLabel(b, o3, -0.6, 'R'); xLabels(b, o3, [[0, '-20s'], [0.5, '-10'], [1, 'now']]); report.plugin.push('best-lap dashed overlay on pedal graph');
 })();
 (function dyn() {
-  var c = CV.cDyn, a = { x: c.x, y: c.y, w: c.w, h: 88 }, b = { x: c.x, y: c.y + 90, w: c.w, h: 50 };
+  var c = CV.cDyn, a = { x: c.x, y: c.y, w: c.w, h: 118 }, b = { x: c.x, y: c.y + 122, w: c.w, h: 70 };
   var o1 = { min: -2, max: 2, pl: 30, pb: 2, points: 180, ms: 33, color: C.lat, thick: 1.8 }, o2 = { min: -2, max: 2, pl: 30, pb: 2, points: 180, ms: 33, color: C.lon, thick: 1.8 }, o3 = { min: -40, max: 40, pl: 30, pb: 12, points: 180, ms: 33, color: C.yaw, thick: 1.8 };
   zeroLine(a, o1, 0); chartAt(a, o1, 'latG', 0, 'dyn_lat'); chartAt(a, o2, 'longG', 0, 'dyn_lon'); chartAt(b, o3, 'yaw', 0, 'dyn_yaw'); zeroLine(b, o3, 0);
   yLabel(a, o1, 1, '1g'); yLabel(a, o1, 0, '0g'); yLabel(a, o1, -1, '-1g'); xLabels(b, o3, [[0, '-6s'], [0.5, '-3'], [1, 'now']]);
+  // G-force: live numbers, two centred bars (2 g full scale) and the peaks of this lap
+  var gx = c.x + 192 + 14, gw = 1903 - gx, gy = c.y, bx = gx + 8, bw = gw - 16, mid = bx + Math.round(bw / 2), half = Math.round(bw / 2) - 2;
+  add(I.rect(gx, gy, gw, 192, '#0F0F12')); label(gx + 8, gy + 5, 300, 13, 'G-FORCE   (bars: 2 g full scale, ticks at 1 g)', { fs: 11, fw: 'SemiBold', color: C.dim });
+  [['LATERAL', 'latG', 'latGText', 'latGDir', C.lat, gy + 22, 'v > 0'], ['LONGITUDINAL', 'longG', 'lonGText', 'lonGDir', C.lon, gy + 90, 'v < 0']].forEach(function (d) {
+    var y = d[5];
+    label(bx, y, 130, 12, d[0], { fs: 11, fw: 'SemiBold', color: C.dim });
+    livetext(bx, y + 12, 160, 36, { fs: 30, fw: 'Bold', color: d[4] }, d[2]);
+    livetext(bx + 160, y + 22, bw - 160, 22, { fs: 15, fw: 'Bold', color: C.text, ha: 2 }, d[3]);
+    add(I.rect(bx, y + 50, bw, 12, '#1F1F25'));
+    var f = add(I.rect(mid, y + 50, 0, 12, d[4]));
+    I.bind(f, 'Width', "var v = tms2('" + d[1] + "', root, 0); return v === null ? 0 : Math.round(Math.min(Math.abs(v), 2) / 2 * " + half + ");");
+    I.bind(f, 'Left', "var v = tms2('" + d[1] + "', root, 0); if (v === null) { return " + mid + "; } var w = Math.round(Math.min(Math.abs(v), 2) / 2 * " + half + "); return " + d[6] + " ? " + mid + " - w : " + mid + ";"); report.live += 2;
+    add(I.rect(mid, y + 47, 1, 18, '#8A8A94')); add(I.rect(mid - Math.round(half / 2), y + 50, 1, 12, '#3A3A44')); add(I.rect(mid + Math.round(half / 2), y + 50, 1, 12, '#3A3A44'));
+  });
+  [['PEAK LAT', 'peakLatText'], ['PEAK BRAKE', 'peakBrkGText'], ['PEAK ACCEL', 'peakAccText'], ['MAX YAW', 'peakYawText']].forEach(function (d, k) {
+    var x = bx + k * 90; label(x, gy + 160, 86, 12, d[0] + '  (lap)', { fs: 10, fw: 'SemiBold', color: C.dim }); livetext(x, gy + 172, 86, 18, { fs: 15, fw: 'Bold', color: C.white }, d[1]);
+  });
 })();
 [0, 1, 2, 3].forEach(function (k) {
   var d = CV['cD' + k], od = { min: 150, max: 900, pl: 28, pb: 12, points: 200, ms: 100, color: CC[k], thick: 1.8 };
@@ -235,12 +268,19 @@ var CV = byId;
 (function car() {
   var c = CV.car, cx = c.x + 150, cy = c.y + 172, bl = 214, bw = bl * 344 / 765, top = cy - bl / 2, axY = [top + 0.235 * bl, top + 0.235 * bl, top + 0.765 * bl, top + 0.765 * bl], wx = [cx - bw / 2 - 11, cx + bw / 2 - 1, cx - bw / 2 - 11, cx + bw / 2 - 1], k;
   for (k = 0; k < 4; k++) { var w = add(I.rect(wx[k], axY[k] - 20, 12, 40, '#3A3A42')); B(w, 'BackgroundColor', 'gripColor', k); label(k % 2 === 0 ? wx[k] - 24 : wx[k] + 16, axY[k] - 7, 24, 14, W4[k], { fs: 11, fw: 'Normal', color: CC[k] }); }
+  label(c.x + 6, c.y + 4, 290, 13, 'TYRE LOAD  N, bar = share of 8000 N   (white dot = load centre)', { fs: 11, color: C.dim });
+  for (k = 0; k < 4; k++) {
+    var lx = k % 2 === 0 ? c.x + 6 : c.x + 244;
+    livetext(lx, axY[k] - 20, 62, 18, { fs: 15, fw: 'Bold', color: C.white, ha: k % 2 === 0 ? 2 : 0 }, 'loadN', k);
+    add(I.rect(lx, axY[k] + 2, 56, 7, '#1F1F25')); var lb = add(I.rect(lx, axY[k] + 2, 0, 7, CC[k]));
+    I.bind(lb, 'Width', "var v = tms2('loadBar', root, " + k + "); return Math.max(2, Math.round(v * 56));"); report.live++;
+  }
   add(I.image('car_top', cx - bw / 2, top, bw, bl, 'car_top')); report.images++;
   add(I.image('arrow_nose', cx - 12, top - 40, 24, 60, 'arrow_nose')); report.images++;
   var tv = add(I.image('arrow_travel', cx - 20, cy - 150, 40, 300, 'arrow_travel')); I.bind(tv, 'Rotation', tmsx('betaRot')); report.live++; report.images++;
   var dot = add(base('EllipseItem', 'LoadCentre', cx - 8, cy - 8, 16, 16, { FillColor: I.argb(C.white), EllipseColor: I.argb(C.white), EllipseThickness: 3 }));
   I.bind(dot, 'Left', "return Math.round(" + (cx - 8) + " + tms2('lcx', root, 0) * " + (bw * 0.3).toFixed(1) + ");"); I.bind(dot, 'Top', "return Math.round(" + (cy - 8) + " - tms2('lcy', root, 0) * " + (bl * 0.26).toFixed(1) + ");"); report.live += 2;
-  label(c.x + 6, c.y + 298, 200, 14, 'load centre: tyre load', { fs: 11, color: C.dim });
+  livetext(c.x + 6, c.y + 296, 288, 16, { fs: 12, fw: 'Bold', color: C.text, ha: 1 }, 'loadShare');
 })();
 function base(type, name, x, y, w, h, extra) { return I.base(type, name, x, y, w, h, extra); }
 (function balance() {
@@ -259,20 +299,10 @@ function base(type, name, x, y, w, h, extra) { return I.base(type, name, x, y, w
     label(x + 6, c.y + 2, 30, 13, d[0], { fs: 11, color: C.dim }); livetext(x + 2, c.y + 94, 34, 14, { fs: 11, fw: 'Bold', color: C.white }, d[1] + 'Pct');
   });
 })();
-(function load() {
-  var c = CV.cLoad, ih = 100, iw = ih * 344 / 765, bx = [70, 160, 70, 160], base2 = [72, 72, 124, 124], k;
-  add(I.rect(c.x, c.y, c.w, c.h, '#0F0F12')); label(c.x + 6, c.y + 2, 200, 13, 'LOAD ON EACH CORNER', { fs: 11, color: C.dim });
-  add(I.image('car_top', c.x + 128 - iw / 2, c.y + 26, iw, ih, 'load_car')); report.images++;
-  for (k = 0; k < 4; k++) {
-    add(I.rect(c.x + bx[k], c.y + base2[k] - 40, 26, 40, '#1F1F25')); var f = add(I.rect(c.x + bx[k], c.y + base2[k], 26, 0, CC[k]));
-    I.bind(f, 'Height', "var v = tms2('loadBar', root, " + k + "); return Math.max(2, Math.round(v * 40));"); I.bind(f, 'Top', "var v = tms2('loadBar', root, " + k + "); return " + (c.y + base2[k]) + " - Math.max(2, Math.round(v * 40));"); report.live += 2;
-    livetext(k % 2 === 0 ? c.x + bx[k] - 48 : c.x + bx[k] + 32, c.y + base2[k] - 18, 40, 14, { fs: 11, fw: 'Bold', color: C.white, ha: k % 2 === 0 ? 2 : 0 }, 'loadN', k);
-  }
-  livetext(c.x + 20, c.y + 128, 230, 14, { fs: 11, fw: 'Bold', color: C.white, ha: 1 }, 'loadShare');
-})();
+// (the tyre load widget moved into the top-down view)
 (function att() {
   var c = CV.cAtt, sw = 190, sh = sw * 233 / 773, rw = 100, rh = rw * 305 / 462;
-  add(I.rect(c.x, c.y, c.w, c.h, '#0F0F12')); label(c.x + 6, c.y + 2, 150, 13, 'SIDE: PITCH (drawn x10)', { fs: 11, color: C.dim }); label(c.x + 6, c.y + 94, 150, 13, 'REAR: ROLL (drawn x6)', { fs: 11, color: C.dim });
+  add(I.rect(c.x, c.y, c.w, c.h, '#0F0F12')); label(c.x + 6, c.y + 2, 150, 13, 'SIDE: PITCH (1x)', { fs: 11, color: C.dim }); label(c.x + 6, c.y + 94, 150, 13, 'REAR: ROLL (1x)', { fs: 11, color: C.dim });
   livetext(c.x + 130, c.y + 2, 122, 13, { fs: 11, fw: 'Bold', color: C.white, ha: 2 }, 'pitchText'); livetext(c.x + 130, c.y + 94, 122, 13, { fs: 11, fw: 'Bold', color: C.white, ha: 2 }, 'rollText');
   add(I.rect(c.x + 10, c.y + 92, 236, 1, '#3A3A42')); add(I.rect(c.x + 10, c.y + 184, 236, 1, '#3A3A42'));
   var s = add(I.image('car_side_pivot', c.x + 128 - sw / 2, c.y + 92 - sh, sw, sh * 2, 'pitch_car')); I.bind(s, 'Rotation', tmsx('pitchRot')); report.live++; report.images++;
@@ -289,26 +319,38 @@ function base(type, name, x, y, w, h, extra) { return I.base(type, name, x, y, w
   label(x0, c.y + 88, 120, 13, 'NOW', { fs: 11, fw: 'SemiBold', color: C.dim }); label(x0 + w - 120, c.y + 88, 120, 13, 'FINISH', { fs: 11, fw: 'SemiBold', color: C.dim, ha: 2 });
   label(x0 + 110, c.y + 88, 110, 13, 'bar = fuel range', { fs: 11, color: '#6C6C78', ha: 1 });
 })();
-(function map() {
-  var c = CV.cMap, S = 118, cx = c.x + c.w / 2, cy = c.y + 22 + (c.h - 26) / 2, k, N = 72, dot;
-  add(I.rect(c.x, c.y, c.w, c.h, '#0F0F12')); label(c.x + 8, c.y + 5, 240, 14, 'TRACK MAP  (draws itself over the first lap)', { fs: 11, fw: 'SemiBold', color: C.dim });
-  for (k = 0; k < N; k++) {
-    dot = add(I.rect(cx, cy, 4, 4, '#6A6A76', 'mapdot'));
-    I.bind(dot, 'Left', "var m = tms2('mapX', root, " + k + "); return Math.round(" + Math.round(cx) + " + (m - 0.5) * " + S + ");");
-    I.bind(dot, 'Top', "var m = tms2('mapY', root, " + k + "); return Math.round(" + Math.round(cy) + " + (m - 0.5) * " + S + ");");
-    I.bind(dot, 'BackgroundColor', tmsx('mapCol', k)); dot.MinimumRefreshIntervalMS = 250; report.live += 3;
+(function lapStats() {
+  var c = CV.cBrake, x0 = c.x + 296, w = 282, y0 = c.y, k, y;
+  add(I.rect(x0, y0, w, c.h, C.card)); add(I.rect(x0, y0, 3, c.h, '#3A3A42'));
+  label(x0 + 10, y0 + 4, 220, 12, 'SECTORS vs BEST  (latest finished)', { fs: 11, fw: 'SemiBold', color: C.dim });
+  for (k = 0; k < 3; k++) {
+    y = y0 + 20 + k * 20;
+    label(x0 + 10, y + 1, 24, 18, 'S' + (k + 1), { fs: 13, fw: 'Bold', color: C.dim });
+    livetext(x0 + 36, y, 74, 19, { fs: 16, fw: 'Bold', color: C.white }, 'sdTime', k);
+    livetext(x0 + 114, y + 3, 90, 15, { fs: 12, fw: 'Medium', color: C.dim }, 'sectorBest', k);
+    livetext(x0 + 206, y, 68, 19, { fs: 16, fw: 'Bold', color: C.white, ha: 2 }, 'sdDelta', k, 'sdColor');
   }
-  var car = add(I.rect(cx, cy, 8, 8, C.y, 'mapcar'));
-  I.bind(car, 'Left', "var m = tms2('carX', root, 0); return Math.round(" + Math.round(cx) + " + (m - 0.5) * " + S + " - 2);");
-  I.bind(car, 'Top', "var m = tms2('carY', root, 0); return Math.round(" + Math.round(cy) + " + (m - 0.5) * " + S + " - 2);");
-  I.bind(car, 'BackgroundColor', tmsx('carCol', 0)); car.MinimumRefreshIntervalMS = 100; report.live += 3;
+  add(I.rect(x0 + 10, y0 + 84, w - 20, 1, '#2A2A31'));
+  label(x0 + 10, y0 + 89, 150, 12, 'THEORETICAL BEST', { fs: 11, fw: 'SemiBold', color: C.dim });
+  livetext(x0 + 10, y0 + 100, 150, 26, { fs: 22, fw: 'Bold', color: C.best }, 'theoText');
+  livetext(x0 + 150, y0 + 106, 126, 16, { fs: 12, fw: 'Bold', color: C.text, ha: 2 }, 'theoGapText');
+  livetext(x0 + 10, y0 + 123, 140, 15, { fs: 12, fw: 'Bold', color: C.text }, 'avgText');
+  livetext(x0 + 150, y0 + 123, 126, 15, { fs: 12, fw: 'Bold', color: C.text, ha: 2 }, 'spreadText');
+})();
+(function slipStrip() {
+  var g = byId.gripRow, xs = [619, 791, 963, 1135], y = g.y + g.h + 6, k, d = [['PEAK SLIP ANGLE  this lap', 'betaPeakText', null], ['TIME SLIDING  this lap', 'slideTimeText', null], ['LAST CORNER', 'cornerLastText', 'cornerLastColor'], ['CORNERS  US / OS / N', 'cornerCountText', null]];
+  for (k = 0; k < 4; k++) {
+    add(I.rect(xs[k], y, 166, 30, C.card));
+    label(xs[k] + 8, y + 2, 156, 12, d[k][0], { fs: 11, fw: 'SemiBold', color: C.dim });
+    livetext(xs[k] + 8, y + 13, 156, 17, { fs: 15, fw: 'Bold', color: C.white }, d[k][1], 0, d[k][2]);
+  }
 })();
 (function cDeltaBrake() {
   var d = CV.cDelta, od = { min: -1, max: 1, pl: 34, pb: 13, points: 600, ms: 100, color: C.white, thick: 3, colorKey: 'deltaColor', minExpr: tmsx('deltaLo'), maxExpr: tmsx('deltaRange') };
   add(I.rect(d.x + 34, d.y + 3 + (d.h - 16) / 2, d.w - 38, 1, '#4A4A54')); chartAt(d, od, 'delta', 0, 'delta'); (function () { var p = plotRect(d, od); livetext(d.x, p.y - 2, 34, 13, { fs: 11, fw: 'SemiBold', color: C.dim }, 'deltaHiText'); label(d.x, p.y + p.h / 2 - 7, 34, 13, '0s', { fs: 11, fw: 'SemiBold', color: C.dim }); livetext(d.x, p.y + p.h - 11, 34, 13, { fs: 11, fw: 'SemiBold', color: C.dim }, 'deltaLoText'); })(); xLabels(d, od, [[0, '-60s'], [0.5, '-30'], [1, 'now']]);
-  var b = CV.cBrake, ob = { min: 0, max: 1, pl: 30, pb: 13, points: 200, ms: 100, color: C.brake, thick: 2 };
-  chartAt(b, ob, 'brk', 0, 'brake'); yLabel(b, ob, 1, '100%'); yLabel(b, ob, 0.5, '50%'); yLabel(b, ob, 0, '0%'); xLabels(b, ob, T20);
-  label(b.x + 34, b.y + 3, 540, 13, 'BRAKE  rolling 20 s', { fs: 11, color: C.dim }); 
+  var b = { x: CV.cBrake.x, y: CV.cBrake.y, w: 286, h: CV.cBrake.h }, ob = { min: 0, max: 1, pl: 30, pb: 13, points: 100, ms: 100, color: C.brake, thick: 2 };
+  chartAt(b, ob, 'brk', 0, 'brake'); yLabel(b, ob, 1, '100%'); yLabel(b, ob, 0.5, '50%'); yLabel(b, ob, 0, '0%'); xLabels(b, ob, [[0, '-10s'], [0.5, '-5'], [1, 'now']]);
+  label(b.x + 34, b.y + 3, 250, 13, 'BRAKE  rolling 10 s', { fs: 11, color: C.dim }); 
   [['cOv', 'ovl'], ['cAbs', 'absAct']].forEach(function (d2) { var c2 = CV[d2[0]], o2 = { min: 0, max: 1, pl: 2, pb: 2, points: 200, ms: 100, color: C.warn, thick: 1.4 }; chartAt(c2, o2, d2[1], 0, d2[0]); });
 })();
 

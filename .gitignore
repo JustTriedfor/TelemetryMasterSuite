@@ -43,3 +43,6 @@ build/inspect/registration.js
 build/inspect/def_*
 build/inspect/served_*
 build/inspect/gamedata_live.json
+
+# scratch crops of the second annotated screenshot
+build/inspect/annot/t2_*.png

@@ -31,7 +31,7 @@ function tms_fmtShort(v) { var t = tms_secs(v), m, s; if (t === null || t <= 0) 
 function tms_fmtSec(v) { var t = tms_secs(v), m, s; if (t === null || t <= 0) { return '--'; } if (t < 60) { return t.toFixed(2); } m = Math.floor(t / 60); s = t - m * 60; return m + ':' + (s < 10 ? '0' : '') + s.toFixed(2); }
 // Body pitch and roll RELATIVE TO THE ROAD from suspension travel (left vs right, front vs rear). The sim's own Pitch/Roll are absolute,
 // so banking (Karussell) or a hill would look like body roll. Assumes travel grows with compression (verify). Returns radians or null.
-var TMS_GEO = { track: 1.6, wheelbase: 2.5, pitchX: 10, rollX: 6, maxDraw: 25 };
+var TMS_GEO = { track: 1.6, wheelbase: 2.5, pitchX: 1, rollX: 1, maxDraw: 25 };
 function tms_attitude() {
   var t = [tms_ph('SuspensionTravel', 0), tms_ph('SuspensionTravel', 1), tms_ph('SuspensionTravel', 2), tms_ph('SuspensionTravel', 3)];
   if (t[0] === null || t[1] === null || t[2] === null || t[3] === null) { return null; }
@@ -150,8 +150,8 @@ function tms(key, root, i) {
     case 'latG': return tms_ph('AccG', 0);
     case 'longG': v = tms_ph('AccG', 2); return v;
     case 'yaw': v = tms_ph('Heading'); if (v === null) { return null; } t = new Date().getTime(); if (root.yh === undefined) { root.yh = v; root.yt = t; root.yv = 0; return 0; } x = (t - root.yt) / 1000; if (x >= 0.05) { b = v - root.yh; while (b > Math.PI) { b -= 2 * Math.PI; } while (b < -Math.PI) { b += 2 * Math.PI; } root.yv = root.yv + 0.5 * (tms_cl(b / x * 180 / Math.PI, -150, 150) - root.yv); root.yh = v; root.yt = t; } return root.yv;   // deg/s, heading increasing = clockwise = turning right is positive
-    case 'pitchRot': r = tms_attitude(); return r === null ? 0 : tms_cl(r.pitch * 180 / Math.PI * TMS_GEO.pitchX, -TMS_GEO.maxDraw, TMS_GEO.maxDraw);       // drawn x10, degrees, nose up = clockwise
-    case 'rollRot': r = tms_attitude(); return r === null ? 0 : tms_cl(r.roll * 180 / Math.PI * TMS_GEO.rollX, -TMS_GEO.maxDraw, TMS_GEO.maxDraw);         // drawn x6, leaning right = clockwise
+    case 'pitchRot': r = tms_attitude(); return r === null ? 0 : tms_cl(r.pitch * 180 / Math.PI * TMS_GEO.pitchX, -TMS_GEO.maxDraw, TMS_GEO.maxDraw);       // drawn 1x (true angle), degrees, nose up = clockwise
+    case 'rollRot': r = tms_attitude(); return r === null ? 0 : tms_cl(r.roll * 180 / Math.PI * TMS_GEO.rollX, -TMS_GEO.maxDraw, TMS_GEO.maxDraw);         // drawn 1x (true angle), leaning right = clockwise
     case 'pitchText': r = tms_attitude(); return r === null ? 'n/a' : 'PITCH ' + tms_sg(r.pitch * 180 / Math.PI, 2) + '\u00b0';
     case 'rollText': r = tms_attitude(); return r === null ? 'n/a' : 'ROLL ' + tms_sg(r.roll * 180 / Math.PI, 2) + '\u00b0';
     // tyres
@@ -171,7 +171,7 @@ function tms(key, root, i) {
     case 'wearLabel': return tms_game() === 'ac' ? 'LIFE' : 'WEAR';   // AC TyreWear is remaining life (98.5 on new tyres in the probe); ACC unverified
     case 'loadText': v = tms_ph('WheelLoad', i); return v === null ? 'n/a' : Math.round(v) + ' N';
     case 'load': return tms_ph('WheelLoad', i);
-    case 'loadBar': v = tms_ph('WheelLoad', i); return v === null ? 0 : tms_cl(v / 4500, 0, 1);
+    case 'loadBar': v = tms_ph('WheelLoad', i); return v === null ? 0 : tms_cl(v / 8000, 0, 1);      // 8000 N = a full bar (a GT3 outside tyre reaches about 7000)
     case 'travelText': v = tms_ph('SuspensionTravel', i); return v === null ? 'n/a' : Math.round(v * 1000) + ' mm';
     case 'travel': v = tms_ph('SuspensionTravel', i); return v === null ? null : v * 1000;
     // brakes
@@ -252,7 +252,7 @@ function tms_step(root) {
   SHP.zoneUpdate(s.st, f, dt, c);
   SHP.metricsUpdate(s.st, br, th, steer, dt, c);
   band = tms_band(root);
-  SHP.eventsUpdate(s.st, { t: now / 1000, lap: s.lap, band: band, lock: lock, absActive: ab, tcActive: tc, offTrack: false }, c);
+  SHP.eventsUpdate(s.st, { t: now / 1000, lap: tms_curLap(), band: band, lock: lock, absActive: ab, tcActive: tc, offTrack: false, lapTime: tms_secs(tms_gd('CurrentLapTime')), speed: sp }, c);
   s.n++;
   return s;
 }
@@ -357,6 +357,101 @@ function tms_map(root, k, n) {
   if (m.px === null || !(sc >= 30)) { return null; }          // nothing recorded yet, or less than 30 m of path
   return { x: 0.5 + (m.px - (m.x0 + m.x1) / 2) / sc, y: 0.5 - (m.pz - (m.z0 + m.z1) / 2) / sc };
 }
+// Per-lap g peaks (spikes above 8 g are kerb or impact noise): lateral, braking, acceleration, yaw rate.
+function tms_gpk(root) {
+  var now = new Date().getTime(), g = root.gk, lap = tms_n(tms_gd('CompletedLaps')), lg, lo, yw;
+  if (!g) { g = root.gk = { t: 0, lap: lap, lat: 0, brk: 0, acc: 0, yaw: 0 }; }
+  if (g.t === now) { return g; }
+  g.t = now;
+  if (lap !== g.lap) { g.lap = lap; g.lat = 0; g.brk = 0; g.acc = 0; g.yaw = 0; }
+  lg = tms_ph('AccG', 0); lo = tms_ph('AccG', 2); yw = tms('yaw', root, 0);
+  if (lg !== null && Math.abs(lg) < 8 && Math.abs(lg) > g.lat) { g.lat = Math.abs(lg); }
+  if (lo !== null && Math.abs(lo) < 8) { if (-lo > g.brk) { g.brk = -lo; } if (lo > g.acc) { g.acc = lo; } }
+  if (yw !== null && Math.abs(yw) > g.yaw) { g.yaw = Math.abs(yw); }
+  return g;
+}
+// Slip statistics for the strip under the grip cards: peak slip angle and time sliding this lap, the last corner's balance, corner counts.
+function tms_slipStats(root) {
+  var now = new Date().getTime(), s = root.ss, lap = tms_n(tms_gd('CompletedLaps')), c = tms_phys(), dt, bd, band, st, deg;
+  if (!s) { s = root.ss = { t: 0, lap: lap, peak: 0, slide: 0, us: 0, os: 0, n: 0, cor: false, last: null }; }
+  if (s.t === now) { return s; }
+  dt = s.t ? (now - s.t) / 1000 : 0; s.t = now;
+  if (lap !== s.lap) { s.lap = lap; s.peak = 0; s.slide = 0; s.us = 0; s.os = 0; s.n = 0; }
+  bd = tms_betaRad(root); band = bd === null ? null : SHP.slipBand(bd, c);
+  if (bd !== null) { deg = Math.abs(bd) * 180 / Math.PI; if (deg < 60 && deg > s.peak) { s.peak = deg; } }
+  if ((band === 'amber' || band === 'red') && dt > 0 && dt < 0.5) { s.slide += dt; }
+  tms_balance(root); st = root.bl && root.bl.bal;
+  if (st) {
+    if (s.cor && !st.cornering) { s.last = tms_verdict(st, c); s[s.last.k]++; }       // a corner just ended
+    s.cor = st.cornering;
+  }
+  return s;
+}
+// How a corner that just ended is called: understeer or oversteer by the larger smoothed peak of front-minus-rear slip, else neutral.
+function tms_verdict(st, c) {
+  if (st.lastU > c.balanceNeutralDeg && st.lastU >= st.lastO) { return { k: 'us', d: st.lastU }; }
+  return st.lastO > c.balanceNeutralDeg ? { k: 'os', d: st.lastO } : { k: 'n', d: 0 };
+}
+// the lap in progress, as the header shows it: CurrentLap, else completed laps + 1
+function tms_curLap() { var l = tms_n(tms_gd('CurrentLap')), n; if (l !== null && l > 0) { return l; } n = tms_n(tms_gd('CompletedLaps')); return n === null ? null : n + 1; }
+// Peaks in the corner log are the third highest sample, so a one- or two-sample spike (a kerb strike, a glitch in the slip estimate) cannot set them.
+function tms_top3(a, v) { a.push(v); a.sort(function (x, y) { return y - x; }); if (a.length > 3) { a.length = 3; } }
+function tms_third(a) { return a.length === 0 ? null : a[a.length - 1]; }
+// Corner log: while cornering (the balance meter's test, 30 km/h and 0.3 g) it tracks the slowest speed, peak lateral g, peak steering angle and peak body slip;
+// a corner that lasted at least a second is filed when it ends, with the same verdict the "last corner" card gives. Keeps the last eight.
+function tms_corners(root) {
+  var now = new Date().getTime(), s = root.cn, c = tms_phys(), dt, sp, lg, sf, bd, st, cur, deg, v;
+  if (!s) { s = root.cn = { t: 0, lap: null, n: 0, cor: false, cur: null, list: [] }; }
+  if (s.t === now) { return s; }
+  dt = s.t ? (now - s.t) / 1000 : 0; s.t = now;
+  sp = tms_n(tms_gd('SpeedKmh')); lg = tms_ph('AccG', 0); sf = tms_steerFrac(); bd = tms_betaRad(root);
+  tms_balance(root); st = root.bl && root.bl.bal;
+  if (!st || sp === null || lg === null) { return s; }
+  if (st.cornering) {
+    if (!s.cor || !s.cur) { s.cur = { lap: tms_curLap(), v: sp, gt: [], st: 0, bt: [], dur: 0 }; }
+    cur = s.cur;
+    if (sp < cur.v) { cur.v = sp; }
+    if (Math.abs(lg) < 8) { tms_top3(cur.gt, Math.abs(lg)); }
+    if (sf !== null) { deg = Math.abs(sf) * TMS_CFG.steerLockDeg; if (deg > cur.st) { cur.st = deg; } }
+    if (bd !== null) { deg = Math.abs(bd) * 180 / Math.PI; if (deg < 60) { tms_top3(cur.bt, deg); } }
+    if (dt > 0 && dt < 0.5) { cur.dur += dt; }
+  } else if (s.cor && s.cur) {
+    cur = s.cur; s.cur = null;
+    if (cur.dur >= 1) {
+      cur.g = tms_third(cur.gt); if (cur.g === null) { cur.g = 0; }
+      cur.b = tms_third(cur.bt);
+      v = tms_verdict(st, c);
+      if (cur.lap !== s.lap) { s.lap = cur.lap; s.n = 0; }
+      s.n++; cur.n = s.n; cur.k = v.k; cur.d = v.d;
+      s.list.push(cur); if (s.list.length > 8) { s.list.shift(); }
+    }
+  }
+  s.cor = st.cornering;
+  return s;
+}
+// corner row i, newest first (null when there is none)
+function tms_cnrow(root, i) { var l = tms_corners(root).list; return l[l.length - 1 - i] || null; }
+// average balance over the logged corners: + understeer, - oversteer
+function tms_cnTrend(root) {
+  var l = tms_corners(root).list, sum = 0, k;
+  if (l.length < 3) { return null; }
+  for (k = 0; k < l.length; k++) { sum += l[k].k === 'us' ? l[k].d : (l[k].k === 'os' ? -l[k].d : 0); }
+  return { m: sum / l.length, n: l.length };
+}
+// the most recent finished time of sector i (this lap's, else last lap's), for the delta against its best
+function tms_secLast(root, i) { var v = tms_secVal(root, i); return (v === null || v.k === 'run') ? null : v.t; }
+// theoretical best lap: the sum of the best sector times
+function tms_theo(root) { var a = tms_secBest(root, 0), b = tms_secBest(root, 1), c = tms_secBest(root, 2); return (a === null || b === null || c === null) ? null : a + b + c; }
+// average and spread (standard deviation) of the last five laps within 107% of the fastest of them (an out-lap or an off does not count)
+function tms_lapSpread() {
+  var t = [], k, h, m = 1e9, sum = 0, ss = 0, n, a, d;
+  for (k = 0; k < 5; k++) { h = tms_hist(k); if (h !== null) { t.push(h.t); if (h.t < m) { m = h.t; } } }
+  t = t.filter(function (x) { return x <= m * 1.07; }); n = t.length;
+  if (n < 2) { return null; }
+  for (k = 0; k < n; k++) { sum += t[k]; } a = sum / n;
+  for (k = 0; k < n; k++) { d = t[k] - a; ss += d * d; }
+  return { avg: a, sd: Math.sqrt(ss / n), n: n };
+}
 function tmsr(key, root, i, minSpan, which) {
   var now = new Date().getTime(), v, k, lo = 1e9, hi = -1e9, sp, c;
   if (!root.rb) { root.rb = []; root.rt = 0; }
@@ -382,7 +477,7 @@ function tms2(key, root, i) {
     case 'peakDecel': if (tms_lapReset(root) || root.pd === undefined) { root.pd = 0; } lg = tms_ph('AccG', 2); if (lg !== null && -lg > root.pd && -lg < 8) { root.pd = -lg; } return root.pd.toFixed(2) + ' g';      // spikes above 8 g are kerb/impact noise
     case 'bias': v = tms_n(tms_gd('BrakeBias')); return v === null ? 'n/a' : v.toFixed(1) + '%';
     case 'lcx': case 'lcy': if (!root.lc) { root.lc = {}; } x = [tms_ph('WheelLoad', 0), tms_ph('WheelLoad', 1), tms_ph('WheelLoad', 2), tms_ph('WheelLoad', 3)]; v = tms_gd('SpeedKmh'); r = SHP.loadCenter(root.lc, x, v === null ? null : v / 3.6, tms_phys()); return r ? (key === 'lcx' ? r.x : r.y) : 0;
-    case 'loadShare': x = [tms_ph('WheelLoad', 0), tms_ph('WheelLoad', 1), tms_ph('WheelLoad', 2), tms_ph('WheelLoad', 3)]; if (x[0] === null || x[1] === null || x[2] === null || x[3] === null) { return 'no tyre load'; } v = x[0] + x[1] + x[2] + x[3]; return 'F ' + Math.round((x[0] + x[1]) / v * 100) + '%  R ' + Math.round((x[2] + x[3]) / v * 100) + '%     L ' + Math.round((x[0] + x[2]) / v * 100) + '%  R ' + Math.round((x[1] + x[3]) / v * 100) + '%';
+    case 'loadShare': x = [tms_ph('WheelLoad', 0), tms_ph('WheelLoad', 1), tms_ph('WheelLoad', 2), tms_ph('WheelLoad', 3)]; if (x[0] === null || x[1] === null || x[2] === null || x[3] === null) { return 'no tyre load'; } v = x[0] + x[1] + x[2] + x[3]; if (v < 1) { return 'no tyre load'; } return 'FRONT ' + Math.round((x[0] + x[1]) / v * 100) + '%  REAR ' + Math.round((x[2] + x[3]) / v * 100) + '%     LEFT ' + Math.round((x[0] + x[2]) / v * 100) + '%  RIGHT ' + Math.round((x[1] + x[3]) / v * 100) + '%';
     case 'raceTotal': v = tms_n(tms_gd('TotalLaps')); return v === null ? 0 : v;
     case 'raceProg': v = tms_n(tms_gd('TotalLaps')); x = tms_n(tms_gd('CompletedLaps')); return (!v || x === null) ? 0 : tms_cl(x / v, 0, 1);
     case 'raceText': b = tms_lapsToGo(); v = tms_n(tms_gd('TotalLaps')); x = tms_n(tms_gd('CurrentLap')); if (b === null) { return 'TO GO  (no lap count, time or plan)'; } if (b.src === 'race' && v) { return 'RACE  lap ' + x + ' of ' + v; } return 'TO GO  ' + b.n + ' laps  (' + (b.src === 'time' ? 'session time' : 'plan') + ')';
@@ -414,7 +509,7 @@ function tms2(key, root, i) {
     case 'deltaLoText': return '-' + tms_dRange(root) + 's';
     case 'znRow': b = tms_step(root); v = tms_zrows(b)[i]; if (!v) { return i === 0 ? (b.n < 10 ? 'waiting for data' : 'no braking zone yet') : ''; } x = v.z; return (v.live ? '>' : ' ') + '#' + tms_pad(x.idx, 2) + ' ' + tms_pad(Math.round(x.entry * 3.6), 3) + '>' + tms_pad(Math.round(x.minSpeed * 3.6), 3) + ' ' + tms_pad(Math.round(x.peak * 100), 3) + '% ' + x.decel.toFixed(1) + 'g ' + x.trail.toFixed(1) + 's' + (x.abs ? ' A' + x.abs : '') + (x.lock ? ' L' : '');
     case 'znColor': b = tms_step(root); v = tms_zrows(b)[i]; if (!v) { return TMS_COL.dim; } return v.z.lock ? TMS_COL.bad : (v.live ? TMS_COL.y : (v.z.abs ? TMS_COL.warn : TMS_COL.white));
-    case 'evRow': b = tms_step(root); v = tms_evrows(b)[i]; if (!v) { return i === 0 ? 'no events yet: slides, lock-ups, ABS, TC' : ''; } return 'L' + (v.lap === null ? '-' : v.lap) + '   ' + tms_evText(v);
+    case 'evRow': b = tms_step(root); v = tms_evrows(b)[i]; if (!v) { return i === 0 ? 'no events yet: slides, lock-ups, ABS, TC' : ''; } return 'L' + (v.lap === null ? '-' : v.lap) + '   ' + (v.lt === null ? '--' : tms_fmtShort(v.lt)) + '   ' + tms_evText(v) + (v.v === null ? '' : '   ' + Math.round(v.v) + ' km/h');
     case 'evColor': b = tms_step(root); v = tms_evrows(b)[i]; if (!v) { return TMS_COL.dim; } return v.type.indexOf('LOCKUP') === 0 ? TMS_COL.bad : (v.type === 'SLIDE' ? TMS_COL.warn : TMS_COL.text);
     case 'lockN': b = tms_step(root); x = [0, 0, 0, 0]; v = SHP.eventList(b.st); for (r = 0; r < v.length; r++) { if (v[r].type.indexOf('LOCKUP') === 0 && v[r].lap === b.lap) { x[+v[r].type.slice(6)]++; } } return x[i];
     case 'lockText': b = tms_step(root); x = [0, 0, 0, 0]; v = SHP.eventList(b.st); for (r = 0; r < v.length; r++) { if (v[r].type.indexOf('LOCKUP') === 0 && v[r].lap === b.lap) { x[+v[r].type.slice(6)]++; } } return 'LOCK-UPS THIS LAP    FL ' + x[0] + '    FR ' + x[1] + '    RL ' + x[2] + '    RR ' + x[3];
@@ -429,6 +524,30 @@ function tms2(key, root, i) {
     case 'carX': b = tms_map(root, -1, 72); return b === null ? 0 : b.x;
     case 'carY': b = tms_map(root, -1, 72); return b === null ? 0 : b.y;
     case 'carCol': b = tms_map(root, -1, 72); return b === null ? '#00000000' : TMS_COL.y;
+    case 'latGText': v = tms_ph('AccG', 0); return v === null ? 'n/a' : Math.abs(v).toFixed(2) + ' g';
+    case 'latGDir': v = tms_ph('AccG', 0); return (v === null || Math.abs(v) < 0.05) ? '' : (v > 0 ? '\u25c4 LEFT' : 'RIGHT \u25ba');
+    case 'lonGText': v = tms_ph('AccG', 2); return v === null ? 'n/a' : Math.abs(v).toFixed(2) + ' g';
+    case 'lonGDir': v = tms_ph('AccG', 2); return (v === null || Math.abs(v) < 0.05) ? '' : (v < 0 ? '\u25c4 BRAKING' : 'ACCEL \u25ba');
+    case 'peakLatText': return tms_gpk(root).lat.toFixed(2) + ' g';
+    case 'peakBrkGText': return tms_gpk(root).brk.toFixed(2) + ' g';
+    case 'peakAccText': return tms_gpk(root).acc.toFixed(2) + ' g';
+    case 'peakYawText': return Math.round(tms_gpk(root).yaw) + '\u00b0/s';
+    case 'betaPeakText': return tms_slipStats(root).peak.toFixed(1) + '\u00b0';
+    case 'slideTimeText': return tms_slipStats(root).slide.toFixed(1) + ' s';
+    case 'cornerLastText': b = tms_slipStats(root); x = b.last; return x === null ? '--' : (x.k === 'us' ? 'UNDERSTEER ' + x.d.toFixed(1) + '\u00b0' : (x.k === 'os' ? 'OVERSTEER ' + x.d.toFixed(1) + '\u00b0' : 'NEUTRAL'));
+    case 'cornerLastColor': b = tms_slipStats(root); x = b.last; return x === null ? TMS_COL.dim : (x.k === 'us' ? TMS_COL.warn : (x.k === 'os' ? TMS_COL.bad : TMS_COL.ok));
+    case 'cornerCountText': b = tms_slipStats(root); return 'US ' + b.us + '   OS ' + b.os + '   N ' + b.n;
+    case 'sdTime': v = tms_secLast(root, i); return v === null ? '--' : tms_fmtSec(v);
+    case 'sdDelta': v = tms_secLast(root, i); x = tms_secBest(root, i); if (v === null || x === null) { return ''; } return Math.abs(v - x) < 0.0005 ? '0.000' : tms_sg(v - x, 3);
+    case 'sdColor': v = tms_secLast(root, i); x = tms_secBest(root, i); if (v === null || x === null) { return TMS_COL.dim; } return v - x < 0.0005 ? TMS_COL.best : (v - x < 0.15 ? TMS_COL.white : TMS_COL.warn);
+    case 'theoText': v = tms_theo(root); return v === null ? '--:--.---' : tms_fmtTime(v);
+    case 'theoGapText': v = tms_theo(root); x = tms_secs(tms_gd('BestLapTime')); if (v === null || x === null || x <= 0) { return ''; } return x - v > 0.0005 ? '-' + (x - v).toFixed(3) + ' s possible' : 'on your best';
+    case 'avgText': b = tms_lapSpread(); return b === null ? 'AVG  --' : 'AVG  ' + tms_fmtTime(b.avg);
+    case 'spreadText': b = tms_lapSpread(); return b === null ? 'SPREAD  --' : 'SPREAD  \u00b1' + b.sd.toFixed(2) + ' s';
+    case 'cnRow': v = tms_cnrow(root, i); if (v === null) { return i === 0 ? 'no corner yet (30 km/h and 0.3 g)' : ''; } return tms_pad('L' + (v.lap === null ? '-' : v.lap), 3) + ' C' + (v.n < 10 ? '0' : '') + v.n + ' ' + tms_pad(Math.round(v.v), 3) + ' ' + v.g.toFixed(2) + ' ' + tms_pad(Math.round(v.st), 3) + '\u00b0 ' + (v.b === null ? tms_pad('--', 5) : tms_pad(v.b.toFixed(1), 4) + '\u00b0') + ' ' + (v.k === 'us' ? 'US ' + v.d.toFixed(1) + '\u00b0' : (v.k === 'os' ? 'OS ' + v.d.toFixed(1) + '\u00b0' : 'NEUTRAL'));
+    case 'cnColor': v = tms_cnrow(root, i); return v === null ? TMS_COL.dim : (v.k === 'us' ? TMS_COL.warn : (v.k === 'os' ? TMS_COL.bad : TMS_COL.ok));
+    case 'cnTrend': v = tms_cnTrend(root); if (v === null) { return 'TREND  needs 3 corners'; } return 'TREND  ' + (v.m > tms_phys().balanceNeutralDeg ? 'UNDERSTEER ' + v.m.toFixed(1) + '\u00b0' : (v.m < -tms_phys().balanceNeutralDeg ? 'OVERSTEER ' + (-v.m).toFixed(1) + '\u00b0' : 'NEUTRAL')) + '  (last ' + v.n + ')';
+    case 'cnTrendColor': v = tms_cnTrend(root); return v === null ? TMS_COL.dim : (v.m > tms_phys().balanceNeutralDeg ? TMS_COL.warn : (v.m < -tms_phys().balanceNeutralDeg ? TMS_COL.bad : TMS_COL.ok));
     default: return tms(key, root, i);
   }
 }
