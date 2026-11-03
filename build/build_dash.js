@@ -373,6 +373,7 @@ function emit(name, list, imgNames, ext, what) {
   fs.writeFileSync(path.join(dir, name + '.djson'), JSON.stringify(d));
   var meta = JSON.parse(JSON.stringify(tplMeta));
   meta.Title = name; meta.Width = 1920; meta.Height = 1080; meta.OverlaySizeWarning = false;
+  meta.Author = 'JustTriedfor'; meta.Description = 'Slip-angle-first telemetry dash for Assetto Corsa Competizione and Assetto Corsa: body slip, tyres, brakes, laps and sectors, fuel, g-forces and a corner-by-corner balance log (1920 x 1080).';
   fs.writeFileSync(path.join(dir, name + '.djson.metadata'), JSON.stringify(meta, null, 2));
   return { name: name, items: list.length, images: imgNames, ext: ext, what: what };
 }

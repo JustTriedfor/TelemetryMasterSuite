@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- The dash and the probe now carry an Author and a Description in their metadata (SimHub shows them in its dash list).
+- `npm test` on a fresh clone says to build first instead of crashing with a file-not-found error.
+- Repository tidy-up before publishing: `.gitattributes` (LF line endings, so a rebuilt package matches the committed one), the out-of-date `dash/README.md` replaced, and the early design notes moved to `docs/notes/` with a status header.
+
 ## 1.0.0 (2026-11-02): first release
 
 The first complete dash. It imports into SimHub 9.12.9 and has been driven in Assetto Corsa (Nordschleife, Zandvoort); Assetto Corsa Competizione is built from SimHub's property catalog and checked offline only.

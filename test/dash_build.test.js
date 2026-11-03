@@ -2,7 +2,13 @@
 // simulated ACC and AC telemetry and returns a sane type for the property it drives, (4) geometry sanity.
 var fs = require('fs'), vm = require('vm'), assert = require('assert'), acorn = require('acorn');
 var root = __dirname + '/../';
-var dash = JSON.parse(fs.readFileSync(root + 'dash/out/TelemetryMasterSuite/TelemetryMasterSuite.djson', 'utf8'));
+var builtFile = root + 'dash/out/TelemetryMasterSuite/TelemetryMasterSuite.djson';
+// dash/out/ is build output (only the .simhubdash packages are committed), so a fresh clone has nothing to validate until it is built
+if (!fs.existsSync(builtFile)) {
+  console.error('FAIL  the generated dash is missing (dash/out/TelemetryMasterSuite/). Build it first, then run npm test again:\n  node build/build_dash.js\n  node build/build_probe.js\n  python build/package.py');
+  process.exit(1);
+}
+var dash = JSON.parse(fs.readFileSync(builtFile, 'utf8'));
 // the reference dashboards are someone else's work: local-only, not in the repo. Tests that compare against them skip when the folder is absent.
 var refFile = root + 'friend_extracted/TrackThirtyTwo Race Control Dashboard Ultrawide/TrackThirtyTwo Race Control Dashboard Ultrawide.djson';
 var ref = fs.existsSync(refFile) ? JSON.parse(fs.readFileSync(refFile, 'utf8')) : null, SKIP = { skip: 'reference dashboards (friend_extracted/) are local-only' };

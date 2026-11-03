@@ -1,0 +1,7 @@
+# Line endings are LF on every machine, so a rebuilt package matches the committed one byte for byte
+# (the scripts embedded in the package would otherwise differ between a Windows and a Linux checkout).
+* text=auto eol=lf
+*.png binary
+*.webp binary
+*.ico binary
+*.simhubdash binary

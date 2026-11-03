@@ -1,5 +1,7 @@
 # Property map (Stage 1)
 
+> **Working reference.** The SimHub property names the dash reads, and how sure we are of each (see the legend below). Written while the dash was built, so "the friend's dashboard" is a third-party reference dashboard that was read, never copied, to learn the file format and which property names exist. For what is confirmed live, see [TO_VERIFY.md](TO_VERIFY.md) and *Known limits* in [README.md](README.md).
+
 Legend for the **Status** column:
 - **V** = verified: the exact name appears in the friend's dashboard and is read there for that game. This shows the name exists on at least one working install; it is not a guarantee for your version.
 - **D** = documented in the game's own SDK or shared-memory spec, but the SimHub-side name and array handling are **not verified** (see TO_VERIFY.md).

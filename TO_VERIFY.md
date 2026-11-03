@@ -1,5 +1,7 @@
 # TO_VERIFY: things only you can confirm inside SimHub
 
+> **Working checklist.** Kept while the dash was built and written as notes to its owner (hence "you" and "I"). Later sections and updates replace earlier ones, and some boxes were settled in later rounds without being ticked, so read it together with *Known limits* in [README.md](README.md), which is the current summary.
+
 Open SimHub, start a session in each sim, then check the **Properties** tab (search box) for each item. Tick them off here.
 
 > **Update (property catalog received):** ACC names are now confirmed to exist (see property-map.md, status C). This resolves the ACC part of section B and the `wheelSlip` question in C. ACC has real `SlipAngle`/`SlipRatio`. Open items are meaning/sign/units (needs a catalog or readout taken while driving), plus everything for AC and iRacing, which were not catalogued.

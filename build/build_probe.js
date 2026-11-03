@@ -82,7 +82,7 @@ function imageMeta(names) { return names.map(function (n) { var buf = fs.readFil
 d.Id = 'e1d3c6a0-5b7c-4f0e-9a41-0c5d7a1f2b90'; d.Images = imageMeta(['wheel_moza', 'wheel_sq']); d.Screens[0].Items = items; d.Screens[0].ScreenId = '0f5c2a9e-6a3d-4a77-b5e0-2c8d9b3a1e44';
 var dir = path.join(root, 'dash/out', NAME); if (!fs.existsSync(dir)) { fs.mkdirSync(dir); }
 fs.writeFileSync(path.join(dir, NAME + '.djson'), JSON.stringify(d));
-var meta = JSON.parse(fs.readFileSync(path.join(root, 'dash/out/TelemetryMasterSuite/TelemetryMasterSuite.djson.metadata'), 'utf8')); meta.Title = NAME;
+var meta = JSON.parse(fs.readFileSync(path.join(root, 'dash/out/TelemetryMasterSuite/TelemetryMasterSuite.djson.metadata'), 'utf8')); meta.Title = NAME; meta.Description = 'Diagnostic dash for the Telemetry Master Suite: prints raw SimHub property values, their types and min/max. Not a driving dash.';
 fs.writeFileSync(path.join(dir, NAME + '.djson.metadata'), JSON.stringify(meta, null, 2));
 fs.writeFileSync(path.join(root, 'build', 'probe_props.json'), JSON.stringify(groups.reduce(function (a, g) { return a.concat(g.rows.map(function (r) { return r[0]; })); }, [])));
 var vp = path.join(root, 'build/variants.json'), variants = JSON.parse(fs.readFileSync(vp, 'utf8')).filter(function (v) { return v.name !== NAME; });

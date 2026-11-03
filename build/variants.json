@@ -12,5 +12,15 @@
   ],
   "ext": true,
   "what": "the full dash: bindings and extension scripts"
+ },
+ {
+  "name": "TMSProbe",
+  "items": 149,
+  "images": [
+   "wheel_moza",
+   "wheel_sq"
+  ],
+  "ext": false,
+  "what": "probe: raw property values, types and min/max for the unverified signs and units"
  }
 ]
