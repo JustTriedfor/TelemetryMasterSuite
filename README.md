@@ -4,8 +4,6 @@ A SimHub dashboard for a second monitor (1920 x 1080) that puts **body slip angl
 
 ![The whole dash, drawn from a simulated lap in Assetto Corsa mode](docs/images/overview.png)
 
-*Every picture in this file is the generated dash drawn from a simulated lap (`build/preview.js`, Assetto Corsa mode), not a recording of a real session. The numbers are made up; the layout, colours and wording are exactly what the package contains.*
-
 **Release 1.0.0.** It imports and runs in SimHub and has been driven in Assetto Corsa (Nordschleife, Zandvoort). The Assetto Corsa Competizione side is built from SimHub's property catalog and checked offline only. Some signs and units are still inferred, not measured: see [Known limits](#known-limits) and `TO_VERIFY.md`.
 
 ## Install
@@ -86,16 +84,7 @@ One card per tyre: core temperature (with a trend arrow), pressure against your 
 - **AC balance numbers are not real degrees.** AC has no slip angle; the balance meter, the grip use and the last-corner card use `WheelSlip`, which is unitless, multiplied by 180/pi and printed with a degree sign. Which end slides more is right; the size is not in degrees, and the "neutral" band is very tight in those units. The slip angle itself (the big number) is a real angle.
 - Corners as light as 0.3 g (a kink at speed) are logged and get a verdict.
 - The direction words in the G-force block assume SimHub's lateral g is positive to the left (inferred from the first probe).
-- Opponent gaps and best-lap overlays need a SimHub C# plugin; those panels were left out rather than faked.
-- ACC is checked offline only. iRacing is not supported (yet).
-
-The long list, with what was measured and what was inferred, is in `TO_VERIFY.md`.
-
-## How it is made
-
-The dash is **generated**, not drawn in Dash Studio: `build/build_dash.js` turns a pixel layout into the dash file, `build/package.py` zips it into the `.simhubdash` that SimHub imports, and every binding is a strict **ES5** JavaScript formula that calls one library, `dash/js/tms_dash.js`. The maths (body slip, balance, grip, braking zones, lock-up and event detectors) lives in `lib/physics.js` and `lib/adapters.js`, with no SimHub dependency, so it is unit tested.
-
-SimHub formulas cannot share state, so every row that needs history runs its own copy of the same detector on the same inputs; the copies agree because they see the same data. This avoids a plugin for the braking zones, the event log, the corner log and the sector timer.
+- iRacing is not supported (yet).
 
 ### Tests
 
