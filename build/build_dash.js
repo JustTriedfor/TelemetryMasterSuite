@@ -128,7 +128,7 @@ function pageBalance(L) {
   for (k = 0; k < 9; k++) { frame(L, 440 + 116 * k, 440, 108, 100, 6, cells[k]); }       // nine cells, oversteer (red, orange) on the left, understeer (blue, violet) on the right, one of them solid in its colour with a pointer under it
   var on = I.rect(440, 440, 108, 100, WHITE); bindProp(on, 'Left', 'return 440 + 116 * ' + key('balIdx') + ';'); bindProp(on, 'BackgroundColor', 'return ' + key('st_cell_col') + ';'); vis(on, 'balCellVis'); L.push(on);
   var pt = I.text(440, 542, 108, 60, '▲', { fs: 56, fw: 'Bold', color: WHITE, ha: 1, va: 1 }); bindProp(pt, 'Left', 'return 440 + 116 * ' + key('balIdx') + ';'); tinted(pt, 'st_cell_col'); vis(pt, 'balOn'); L.push(pt);
-  rect(L, 958, 546, 6, 52, WHITE); label(L, 440, 552, 100, 50, 40, 'OS', { color: C.bad }); label(L, 1376, 552, 100, 50, 40, 'US', { ha: 2, color: C.cold });
+  rect(L, 958, 546, 6, 52, WHITE); label(L, 440, 404, 100, 36, 32, 'OS', { color: C.bad }); label(L, 1376, 404, 100, 36, 32, 'US', { ha: 2, color: C.cold });       // above the end cells: the pointer under an end cell would cover them
   // the last corner (pink cluster): its number and what the balance was in each phase of it
   live(L, 440, 622, 76, 64, 48, 'cnNum', 0, { color: C.pink });
   [520, 839, 1152].forEach(function (cx, q) { frame(L, cx, 620, 300, 64, 6, C.pink); plate(L, cx, 620, 300, 64, 'cn', q); live(L, cx, 620, 300, 64, 40, 'cnChip', q, { ha: 1, ink: 'st_cn_ink' }); });

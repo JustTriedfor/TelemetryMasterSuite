@@ -228,6 +228,22 @@ t('g-meter on the balance page: a small ring (1.5 g is 100 px), the total g as t
   assert.ok(/^LAST SLIDE  T1  17\.\d°$/.test(key(c, 'lastSlideText')), key(c, 'lastSlideText')); assert.ok(flashes(c, 'lsl', 0), 'flashes for 3 s'); assert.strictEqual(st(c, 'lsl', 'col', 0), AMBER);
   advance(c, 3300); assert.strictEqual(st(c, 'lsl', 'vis', 0), false); assert.strictEqual(st(c, 'lsl', 'ink', 0), AMBER, 'then amber text, no plate'); assert.ok(/^LAST SLIDE  T1/.test(key(c, 'lastSlideText')), 'it stays until the next slide');
 });
+t('lock-up tiles: a lock-up counts on its wheel for the current lap (events carry the current lap, the completed laps are one lower) and keeps its tile a steady plate', function () {
+  var props = require('./props'), c2 = vm.createContext({ Math: Math, __now: 7000000 }), n, p, res;
+  c2.Date = function () { this.getTime = function () { return c2.__now; }; };
+  ['lib/physics.js', 'lib/adapters.js', 'dash/js/tms_dash.js', 'mock/sim.js'].forEach(function (f) { vm.runInContext(fs.readFileSync(root + f, 'utf8'), c2, { filename: f }); });
+  c2.__sim = vm.runInContext('SIM.create()', c2); vm.runInContext('__sim.lap = 13;', c2); c2.__r = [];
+  c2.$prop = function () { return undefined; }; vm.runInContext("tms2('gripText', [], 0); tms2('gripText', [], 0);", c2);       // two formulas have used the library: it is shared and the pump works, as on the real dash
+  for (n = 0; n < 60 * 25; n++) {       // the simulated lap locks the front left wheel at about 17.5 s
+    res = vm.runInContext('SIM.step(__sim, 1/60)', c2); p = props(res.frame, 'acc'); c2.__now += 16;
+    c2.$prop = function (nm) { return p.hasOwnProperty(nm) ? p[nm] : undefined; };
+    key(c2, 'pump');
+    if (n === 60 * 15) { assert.strictEqual(key(c2, 'lockTile', 0), 'FL 0', 'before the lock-up'); }
+  }
+  assert.strictEqual(p['DataCorePlugin.GameData.CurrentLap'] - p['DataCorePlugin.GameData.CompletedLaps'], 1, 'the case that broke it: the current lap is one above the completed laps');
+  assert.strictEqual(key(c2, 'lockTile', 0), 'FL 1'); assert.strictEqual(key(c2, 'lockTile', 1), 'FR 0');
+  assert.ok(steady(c2, 'tile', 0), 'a steady plate on the wheel that locked'); assert.strictEqual(st(c2, 'tile', 'vis', 1), false);
+});
 t('colour: the alert block takes the colour of its kind, the flag lane the colour of its flag', function () {
   var c = engine();
   c.__p[G + 'OilTemperature'] = 140; advance(c, 3300); assert.strictEqual(key(c, 'alertWord'), 'OIL 140'); assert.strictEqual(st(c, 'alert', 'col'), RED, 'oil is red');

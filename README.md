@@ -2,7 +2,7 @@
 
 A SimHub dashboard for a second monitor (1920 x 1080) that puts **body slip angle** front and centre and wraps it in the numbers a driver needs to understand a car: tyres, brakes, lap and sector times, fuel, g-forces and corner-by-corner balance. It runs on **SimHub 9.12.9** with **Assetto Corsa Competizione** and **Assetto Corsa**. iRacing is an unfinished side project (the dash says "unsupported" there).
 
-![The whole dash, drawn from a simulated lap in Assetto Corsa mode](docs/images/overview.png)
+![Version 1.4, page 1 (Balance), in an oversteer slide on a simulated lap](docs/images/v14-balance.png)
 
 **Release V1.2** ships four new dash versions beside the unchanged 1.0.0 dash: 1.1 (light on SimHub's formula engine), 1.2 (three pages), 1.3 (a glance page) and **1.4, the current dash, `TelemetryMasterSuite_v1_4`**: a side panel for detailed telemetry on three pages with colour, flashing pop-ups, a g-meter with heading and trajectory arrows, and an always-live balance. Import `dash/out/TelemetryMasterSuite_v1_4.simhubdash`. Version 1.4 was drawn for a bright-sun glance and has not been driven yet: see `TO_VERIFY.md` section AA.
 
@@ -48,9 +48,54 @@ A SimHub dashboard for a second monitor (1920 x 1080) that puts **body slip angl
 
 **Thresholds are defaults** (`TMS_GL` in `dash/js/tms_dash.js`), none measured on a real car. In AC the slip angle is estimated (the balance carries `EST`) and the game gives no full suspension stroke: the bars show the travel inside the range seen so far, and no bottoming is counted (ACC gives the stroke and does count it). The counters that run over a lap (braking zones, corners, events, load peaks, the lap's peaks) keep running on the pages you are not looking at, because every page carries the shared per-frame step (if the `PERF` line ever says `PRIVATE`, SimHub is not sharing the script variables and they pause on a page you are not looking at). The traces on a page that is not shown get no new points; when you come back they continue from where they stopped.
 
+### The three pages
+
+The pictures in this file are drawn from a simulated lap (`python tools/readme_pictures.py`): the numbers are made up, the layout, colours, wording and flashing states are what the dash draws.
+
+**Page 1, Balance** (here in an oversteer slide). This is the page to leave on.
+
+![Page 1, Balance, in an oversteer slide](docs/images/v14-balance.png)
+
+- **Left:** a load bar per tyre in the tyre's colour (against that tyre's own peak, a white tick at its average), the **g-meter** between them with the heading and trajectory arrows, the total g under it, and the front-rear and left-right weight split.
+- **Middle:** **beta** in yellow with an arrow for the way the tail swings, the grip word (GRIP, TRANSITION, SLIDE), the **balance verdict** with the phase and its size in degrees of front minus rear slip, nine cells (oversteer red and orange on the left, neutral green, understeer blue and violet on the right) with one solid and a pointer under it, and the last corner's verdict for entry, mid and exit.
+- **Right:** a slip-angle tile per tyre, steering, the brake and throttle bars, and the TC (amber) and ABS (blue) squares.
+- **Bottom:** the last 8 s of beta, steering, brake and throttle, and (red) the last lock-up, the lock-ups this lap per wheel and the last slide.
+
+**Page 2, Tyres and car** (mid corner). Four tyre cards in the tyre's colour: core temperature with its 80 to 95 window, pressure against the target, inner, middle and outer temperature with their window, and a tread spread verdict after two laps. Between them four suspension bars (violet, amber from 90% and red from 95% of the stroke in ACC) with the lap's peak, and a g-g diagram with the lap's peak g under it.
+
+![Page 2, Tyres and car](docs/images/v14-tyres.png)
+
+**Page 3, Brakes** (after the lock-up and the slide): the braking zones and the corners, four disc thermometers (blue cold, green in the window, amber warm, red hot) with the lap's peak and minimum, the last lock-up, the event list and the lock-ups this lap per wheel.
+
+![Page 3, Brakes](docs/images/v14-brakes.png)
+
+### Examples
+
+**Alerts.** One word with its value, top middle, on a block in the colour of its kind. A lock-up and a slide show for 3 s, persistent alerts (oil, water, fuel, brakes, a hot tyre, a high pressure) take turns every 2 s and flash for 3 s when they are new.
+
+![Alert examples: lock-up, slide, oil with a yellow chip, brakes](docs/images/v14-alerts.png)
+
+**Flags.** The lane under the alert: a block in the flag's colour with its own shape (a triangle, a double chevron, a black square, a chequered cell, a ring), because white and yellow look the same brightness in bright sun. Red takes the whole top; black also lights a bar down the left edge.
+
+![Flag examples: yellow, yellow chip, blue, black, red, chequered, white](docs/images/v14-flags.png)
+
+**The balance indicator is always there** (above 20 km/h), not only when the car is doing something. Front minus rear slip angle in degrees: under 0.7 it reads NEUTRAL in green; beyond that a steady plate (blue for understeer, red for oversteer), flashing from 2 degrees. In a spin (20 degrees of beta or more) it says SPIN.
+
+![The balance indicator in oversteer, understeer and neutral](docs/images/v14-balance-states.png)
+
+**Heading and trajectory.** Both arrows start at the centre of the g-meter. The white one is where the nose points and never moves. The yellow one is where the car is going, turned by three times beta, so the angle between them is the slip angle. On a straight they agree; in a slide the yellow arrow leans away. The dot is where the car's g is.
+
+![The g-meter in a slide and on a straight](docs/images/v14-gmeter.png)
+
+**Critical states flash a plate.** A tyre core over 105 C, a pressure more than 1.2 psi over the target, a disc over 750 C and a bottoming (ACC, which gives the full stroke) each flash a red plate (about 3 Hz) on top of their colour.
+
+![Critical states: a hot tyre, a high pressure, a hot disc, a bottoming damper](docs/images/v14-critical.png)
+
 ## What is visible on the screen
 
 *The sections below describe the panels of 1.0.0 to 1.3 (the pictures are 1.0.0). 1.4 is drawn differently: see [Pages](#pages).*
+
+![Version 1.0.0, the whole dash, drawn from a simulated lap in Assetto Corsa mode](docs/images/overview.png)
 
 One colour per signal, everywhere: **beta yellow, brake red, throttle green, steering pale blue**; the four tyres are **FL cyan, FR mint, RL pink, RR sand**. Dark graphite panels, signal yellow for headings, Bahnschrift type.
 
@@ -158,7 +203,7 @@ python build/package.py
 npm test
 ```
 
-Python needs Pillow. Pictures like the ones above: `node build/preview.js ac 40`, then open `dash/out/preview_ac.html` (`acc` for Assetto Corsa Competizione, a third argument `practice` for a practice session).
+Python needs Pillow. The pictures of version 1.4 in this file: `python tools/readme_pictures.py` (it runs `build/preview.js` for each moment and scenario, takes the screenshots with headless Edge and cuts and labels them). One picture by hand: `node build/preview.js ac 40`, then open `dash/out/preview_ac.html` (`acc` for Assetto Corsa Competizione, a third argument `practice` for a practice session).
 
 ## Repository layout
 

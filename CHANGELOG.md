@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased (after V1.2)
+
+- **README pictures and examples** for version 1.4: the three pages, the alert and flag lanes, the balance indicator in three states, the g-meter with the heading and trajectory arrows, and the flashing plates for critical states (`docs/images/v14-*.png`). They are drawn from a simulated lap by `tools/readme_pictures.py`; `build/preview.js` has new scenarios for them (`flag:<Name>[:<seconds>]`, `hot`) and takes each picture on a frame where every flash phase is on.
+- **Fix: "LOCK-UPS THIS LAP" never counted** (since 1.0.0). The per-wheel counter compared each event's lap with the completed laps, one lower than the lap the events are stamped with (the number the header shows), so it stayed at 0 although the pop-up, the last-lock plate and the event list worked. `test/glance.test.js` drives the simulated lap through its lock-up and fails on the old code. Found while making the pictures.
+- **Fix: `OS` and `US` labels** moved above the end cells of the balance indicator; the pointer under an end cell covered them.
+- The 1.4 package (`dash/out/TelemetryMasterSuite_v1_4.simhubdash`) is rebuilt with both fixes; the V1.2 release has the earlier one.
+
 ## V1.2 (2026-11-05): the release that ships the dashes 1.1 to 1.4
 
 Release V1.2 packs four dash versions that were built one after another, each a separate package beside the unchanged 1.0.0 dash (`dash/out/`). The current one is `TelemetryMasterSuite_v1_4`; the sections below say what each version changed.

@@ -1,5 +1,7 @@
 // Renders the generated dash to HTML by evaluating every binding against the simulated lap (ACC or AC).
 // This is a model of what SimHub should draw, not SimHub itself. Usage: node build/preview.js [acc|ac] [seconds-into-lap] [scenario] [page 1-3]
+// Scenarios: practice | alert | flag:<Name>[:<seconds>] (Yellow, Blue, Red, Black, Checkered, White, Green; raised for the last 2.5 s unless given) | hot (a hot tyre, a high pressure and a hot disc and a bottoming damper, ACC's suspension stroke)
+// The picture is taken on a frame where every flash phase is on (the plates are visible), so a flashing state is shown, not hidden.
 var fs = require('fs'), vm = require('vm'), path = require('path');
 var root = path.join(__dirname, '..');
 var game = process.argv[2] || 'acc', target = parseFloat(process.argv[3] || '25.5'), scenario = process.argv[4] || '', pageNo = +(process.argv[5] || 1);
@@ -16,15 +18,22 @@ vm.runInContext('__sim.lap = 13;', ctx);
 var fns = [];
 items.forEach(function (it) { Object.keys(it.Bindings).forEach(function (p) { fns.push({ it: it, p: p, fn: vm.runInContext('(function(root){' + it.Bindings[p].Formula.Expression + '})', ctx), root: {}, last: -1e9 }); }); });
 var series = {}, vals = {};     // chart name -> samples ; item name -> {prop: value}
-var steps = Math.round(target * 60) + 60 * 8, n, k, res, p, fr;
-for (n = 0; n < steps; n++) {
+var steps = Math.round(target * 60) + 60 * 8, n, k, res, p, fr, extra = 0;
+function flashOn() { return vm.runInContext('tms_blink(170) && tms_blink(250) && tms_blink(125)', ctx); }
+for (n = 0; n < steps || (extra < 150 && !flashOn()); n++) {
+  if (n >= steps) { extra++; }
   res = vm.runInContext('SIM.step(__sim, 1/60)', ctx); fr = res.frame; p = props(fr, game); ctx.__now += 16;
   if (scenario === 'practice') {      // lap 1 of a practice session on a banked corner: no best lap, no lap count, negative session time, absolute roll 14 degrees
     var G = 'DataCorePlugin.GameData.'; delete p[G + 'DeltaToSessionBest']; p[G + 'BestLapTime'] = 0; p[G + 'LastLapTime'] = 0; p[G + 'CurrentLap'] = 1; p[G + 'CompletedLaps'] = 0; p[G + 'TotalLaps'] = 0; p[G + 'RemainingLaps'] = 0; p[G + 'SessionTimeLeft'] = -517;
     p[G + 'Sector1Time'] = 180.27; p[G + 'Sector2Time'] = 0; p[G + 'Sector3LastLapTime'] = 0; p[G + 'Sector1BestTime'] = 0; p[G + 'Fuel'] = 43.1; p['DataCorePlugin.Computed.Fuel_LitersPerLap'] = 11.17; p['DataCorePlugin.Computed.Fuel_RemainingLaps'] = 43.1 / 11.17;
     p['DataCorePlugin.GameRawData.Physics.Roll'] = 0.245; p['DataCorePlugin.GameRawData.Physics.Pitch'] = -0.08;
   }
-  if (/^flag:/.test(scenario) && n > steps - 150) { p['DataCorePlugin.GameData.Flag_Name'] = scenario.slice(5); }       // flag:Yellow ... the flag is raised for the last 2.5 s
+  var fm = /^flag:([A-Za-z]+)(?::(\d+))?$/.exec(scenario);       // flag:Yellow or flag:Yellow:6 ... the flag is raised for the last 2.5 s (or the seconds given)
+  if (fm && n > steps - 60 * (fm[2] ? +fm[2] : 2.5)) { p['DataCorePlugin.GameData.Flag_Name'] = fm[1]; }
+  if (scenario === 'hot') {       // ACC gives the full suspension stroke; for the last 2.5 s a tyre core over 105, a pressure 1.7 psi high, a disc at 830 and the front left damper at 97% of its stroke
+    var q; for (q = 1; q <= 4; q++) { p['DataCorePlugin.GameRawData.StaticInfo.SuspensionMaxTravel0' + q] = 0.0345; }
+    if (n > steps - 150) { p['DataCorePlugin.GameRawData.Physics.TyreCoreTemperature01'] = 112; p['DataCorePlugin.GameData.TyrePressureFrontRight'] = 29.2; p['DataCorePlugin.GameRawData.Physics.BrakeTemp01'] = 830; p['DataCorePlugin.GameRawData.Physics.SuspensionTravel01'] = 0.0336; }
+  }
   if (scenario === 'alert') { var G2 = 'DataCorePlugin.GameData.'; p[G2 + 'MaxRpm'] = 8000; p[G2 + 'Rpms'] = 7700; p[G2 + 'Flag_Name'] = 'Yellow'; p[G2 + 'OilTemperature'] = 131; p[G2 + 'DeltaToSessionBest'] = -0.62; p[G2 + 'TCActive'] = 1; p[G2 + 'ABSActive'] = 0; }       // a busy moment for the glance page: near the shift point, a yellow flag, hot oil, faster than the best lap, TC working
   ctx.$prop = function (nm) { return p.hasOwnProperty(nm) ? p[nm] : undefined; };
   for (k = 0; k < fns.length; k++) {

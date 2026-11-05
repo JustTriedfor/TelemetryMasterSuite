@@ -333,10 +333,10 @@ function tms_znTxt(s, i) {
 }
 // lock-ups of the current lap per wheel: depends on the event list and the lap only
 function tms_lkTxt(s) {
-  var key = s.evV + ':' + s.lap, x, v, r;
+  var cl = tms_curLap(), key = s.evV + ':' + cl, x, v, r;       // events are stamped with the current lap (tms_step), so count against that and not against the completed laps (s.lap), which is one lower
   if (s.lkB !== key) {
     x = [0, 0, 0, 0]; v = SHP.eventList(s.st);
-    for (r = 0; r < v.length; r++) { if (v[r].type.indexOf('LOCKUP') === 0 && v[r].lap === s.lap) { x[+v[r].type.slice(6)]++; } }
+    for (r = 0; r < v.length; r++) { if (v[r].type.indexOf('LOCKUP') === 0 && v[r].lap === cl) { x[+v[r].type.slice(6)]++; } }
     s.lkB = key; s.lkN = x; s.lkT = 'LOCK-UPS THIS LAP    FL ' + x[0] + '    FR ' + x[1] + '    RL ' + x[2] + '    RR ' + x[3];
     s.lkC = (x[0] + x[1] + x[2] + x[3]) > 0 ? TMS_COL.bad : TMS_COL.text;
   }
