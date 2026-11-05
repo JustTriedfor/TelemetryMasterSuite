@@ -3,7 +3,8 @@
 // unverified signs, scales and units are settled. Run after build/build_dash.js:  node build/build_probe.js && python build/package.py
 var fs = require('fs'), path = require('path'), I = require('./items.js');
 var root = path.join(__dirname, '..');
-var main = JSON.parse(fs.readFileSync(path.join(root, 'dash/out/TelemetryMasterSuite/TelemetryMasterSuite.djson'), 'utf8'));
+var MAIN = require('./dash_name.js');
+var main = JSON.parse(fs.readFileSync(path.join(root, 'dash/out', MAIN, MAIN + '.djson'), 'utf8'));
 var LABELW = 30, NAME = 'TMSProbe', G = 'DataCorePlugin.GameData.', P = 'DataCorePlugin.GameRawData.Physics.', C = 'DataCorePlugin.Computed.', T = 'PersistantTrackerPlugin.';
 
 function row(full, label) {
@@ -77,12 +78,13 @@ ANG.forEach(function (ang, k) {
 });
 
 var d = JSON.parse(JSON.stringify(main));
+d.Screens = d.Screens.slice(0, 1); d.Metadata.ScreenCount = 1; d.Metadata.InGameScreensIndexs = [0]; d.Metadata.IdleScreensIndexs = [0];       // the probe has one screen, whatever the main dash has
 var crypto = require('crypto');
 function imageMeta(names) { return names.map(function (n) { var buf = fs.readFileSync(path.join(root, 'dash', 'assets', n + '.png')); return { Name: n, Extension: '.png', Modified: false, Optimized: true, Width: buf.readUInt32BE(16), Height: buf.readUInt32BE(20), Length: buf.length, MD5: crypto.createHash('md5').update(buf).digest('hex') }; }); }
 d.Id = 'e1d3c6a0-5b7c-4f0e-9a41-0c5d7a1f2b90'; d.Images = imageMeta(['wheel_moza', 'wheel_sq']); d.Screens[0].Items = items; d.Screens[0].ScreenId = '0f5c2a9e-6a3d-4a77-b5e0-2c8d9b3a1e44';
 var dir = path.join(root, 'dash/out', NAME); if (!fs.existsSync(dir)) { fs.mkdirSync(dir); }
 fs.writeFileSync(path.join(dir, NAME + '.djson'), JSON.stringify(d));
-var meta = JSON.parse(fs.readFileSync(path.join(root, 'dash/out/TelemetryMasterSuite/TelemetryMasterSuite.djson.metadata'), 'utf8')); meta.Title = NAME; meta.Description = 'Diagnostic dash for the Telemetry Master Suite: prints raw SimHub property values, their types and min/max. Not a driving dash.';
+var meta = JSON.parse(fs.readFileSync(path.join(root, 'dash/out', MAIN, MAIN + '.djson.metadata'), 'utf8')); meta.Title = NAME; meta.Description = 'Diagnostic dash for the Telemetry Master Suite: prints raw SimHub property values, their types and min/max. Not a driving dash.';
 fs.writeFileSync(path.join(dir, NAME + '.djson.metadata'), JSON.stringify(meta, null, 2));
 fs.writeFileSync(path.join(root, 'build', 'probe_props.json'), JSON.stringify(groups.reduce(function (a, g) { return a.concat(g.rows.map(function (r) { return r[0]; })); }, [])));
 var vp = path.join(root, 'build/variants.json'), variants = JSON.parse(fs.readFileSync(vp, 'utf8')).filter(function (v) { return v.name !== NAME; });

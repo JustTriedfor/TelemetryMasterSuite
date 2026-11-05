@@ -60,7 +60,7 @@ t('every key returns a plain value (never throws, never NaN) for ACC, every whee
 t('values: beta tracks the simulated slip, pedals normalise, text formats', function () {
   var ctx = makeCtx({}), sim = vm.runInContext('SIM.create()', ctx), root = {}, f, n, res, props;
   ctx.__sim = sim; ctx.__root = root;
-  for (n = 0; n < 60 * 26; n++) { res = vm.runInContext('SIM.step(__sim, 1/60)', ctx); f = res.frame; props = accProps(f); ctx.$prop = function (nm) { return props.hasOwnProperty(nm) ? props[nm] : undefined; }; ctx.__key = 'beta'; ctx.__i = 0; vm.runInContext('tms(__key, __root, __i)', ctx); }
+  for (n = 0; n < 60 * 26; n++) { ctx.__now += 16; res = vm.runInContext('SIM.step(__sim, 1/60)', ctx); f = res.frame; props = accProps(f); ctx.$prop = function (nm) { return props.hasOwnProperty(nm) ? props[nm] : undefined; }; ctx.__key = 'beta'; ctx.__i = 0; vm.runInContext('tms(__key, __root, __i)', ctx); }
   var beta = vm.runInContext("tms('beta', __root, 0)", ctx);
   assert.ok(Math.abs(beta - f.beta_true * 180 / Math.PI) < 3, 'beta ' + beta + ' vs ' + f.beta_true * 180 / Math.PI);
   assert.strictEqual(vm.runInContext("tms('thr', {}, 0)", ctx), f.throttle);
@@ -91,7 +91,7 @@ t('AC: beta from world velocity and heading after calibration, not before', func
   // fake sim where travel direction = -heading + 0.7; eight straights on different headings, then a 10 degree drift
   for (seg = 0; seg < 8; seg++) { for (i = 0; i < 60; i++) { h = seg * 0.8 - 2.5 + i * 0.0002; th = -h + 0.7; ctx.__now += 16; p[P + 'Velocity01'] = Math.sin(th) * 40; p[P + 'Velocity02'] = 0; p[P + 'Velocity03'] = Math.cos(th) * 40; p[P + 'Heading'] = h; vm.runInContext("tms('beta', __root, 0)", ctx); } }
   h = 1.2; th = -h + 0.7 + 10 * Math.PI / 180; p[P + 'Velocity01'] = Math.sin(th) * 40; p[P + 'Velocity03'] = Math.cos(th) * 40; p[P + 'Heading'] = h;
-  var b = 0; for (i = 0; i < 40; i++) { b = vm.runInContext("tms('beta', __root, 0)", ctx); }
+  var b = 0; for (i = 0; i < 40; i++) { ctx.__now += 16; b = vm.runInContext("tms('beta', __root, 0)", ctx); }       // time passes between data frames, as in SimHub (the library steps once per frame)
   assert.ok(Math.abs(b - 10) < 1.5, 'beta ' + b);
 });
 
@@ -133,7 +133,7 @@ t('lap timing on lap 1: no best lap shows the live lap time, long sectors read m
 t('peak decel ignores impact spikes above 8 g', function () {
   var ctx = makeCtx({}), root = {}, vals = [0.5, 54.06, 1.2, 0.9], i, r;
   ctx.__root = root; ctx.$prop = function (n) { return n === 'DataCorePlugin.GameData.CompletedLaps' ? 3 : (n === 'DataCorePlugin.GameRawData.Physics.AccG03' ? ctx.__g : undefined); };
-  for (i = 0; i < vals.length; i++) { ctx.__g = -vals[i]; r = vm.runInContext("tms2('peakDecel', __root, 0)", ctx); }
+  for (i = 0; i < vals.length; i++) { ctx.__g = -vals[i]; ctx.__now += 16; r = vm.runInContext("tms2('peakDecel', __root, 0)", ctx); }       // the library steps once per data frame, so time has to pass between the readings
   assert.strictEqual(r, '1.20 g');
 });
 t('steering: a positive raw SteerAngle (right) turns the drawn wheel clockwise, the raw value is shown, the text says R', function () {

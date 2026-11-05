@@ -1,8 +1,9 @@
 // Loads a dash in SimHub's real web client (headless Edge, DevTools protocol) and reports console output, uncaught exceptions with stacks,
-// how many dash items were rendered, and saves a screenshot.   node tools/cdp_dash.js <DashName> [seconds] [out.png]
+// how many dash items were rendered, and saves a screenshot.   node tools/cdp_dash.js <DashName> [seconds] [out.png] [--page N]
+// --page N switches to screen N first, with the same NextScreen action a wheel button triggers (a dash with several pages).
 // Needs SimHub running (web server on :8888). Read-only: it only opens a page.
 var cp = require('child_process'), http = require('http'), fs = require('fs'), path = require('path');
-var name = process.argv[2] || 'TelemetryMasterSuite', secs = +(process.argv[3] || 12), out = process.argv[4] || path.join(__dirname, '..', 'mock', 'shots', 'cdp_' + name.replace(/\W+/g, '_') + '.png');
+var name = process.argv[2] || require('../build/dash_name.js'), secs = +(process.argv[3] || 12), out = process.argv[4] || path.join(__dirname, '..', 'mock', 'shots', 'cdp_' + name.replace(/\W+/g, '_') + '.png');
 var EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', PORT = 9340 + Math.floor(Math.random() * 50);
 var prof = path.join(process.env.TEMP || '.', 'cdp_prof_' + PORT);
 var proc = cp.spawn(EDGE, ['--headless=new', '--disable-gpu', '--hide-scrollbars', '--window-size=1920,1080', '--remote-debugging-port=' + PORT, '--user-data-dir=' + prof, 'about:blank'], { stdio: 'ignore' });
@@ -30,6 +31,8 @@ function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   if (process.argv.indexOf('--caught') > 0) { await send('Debugger.enable'); await send('Debugger.setPauseOnExceptions', { state: 'all' }); }
   await send('Page.navigate', { url: 'http://localhost:8888/Dash#' + encodeURIComponent(name) });
   await wait(secs * 1000);
+  var pg = process.argv.indexOf('--page') > 0 ? +process.argv[process.argv.indexOf('--page') + 1] : 1, pk;
+  for (pk = 1; pk < pg; pk++) { await send('Runtime.evaluate', { expression: 'window.simhub.client.actionTriggered(7, "NextScreen")' }); await wait(Math.min(secs, 6) * 1000); }
   var stats = await send('Runtime.evaluate', { expression: 'JSON.stringify({items: document.querySelectorAll(".dash-item").length, byType: ["TextItem","RectangleItem","ImageItem","ChartItem","EllipseItem"].map(function(t){return t+":"+document.querySelectorAll(".dash-item."+t).length;}), wrap: Object.keys(window.SimHubWrapItems||{}).length, overlay: (function(){var o=document.getElementById("progressOverlay");return o?getComputedStyle(o).display:null;})(), label: (document.getElementById("loadingLabel")||{}).innerText, progress: Array.from(document.querySelectorAll(".progresslist li")).map(function(l){return l.innerText;})})', returnByValue: true });
   var shot = await send('Page.captureScreenshot', { format: 'png' });
   if (shot && shot.data) { fs.writeFileSync(out, Buffer.from(shot.data, 'base64')); }

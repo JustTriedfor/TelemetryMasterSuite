@@ -1,26 +1,12 @@
 [
  {
-  "name": "TelemetryMasterSuite",
-  "items": 681,
+  "name": "TelemetryMasterSuite_v1_4",
+  "items": 788,
   "images": [
-   "car_top",
-   "car_side_pivot",
-   "car_rear_pivot",
-   "wheel_sq",
    "arrow_nose",
    "arrow_travel"
   ],
   "ext": true,
-  "what": "the full dash: bindings and extension scripts"
- },
- {
-  "name": "TMSProbe",
-  "items": 149,
-  "images": [
-   "wheel_moza",
-   "wheel_sq"
-  ],
-  "ext": false,
-  "what": "probe: raw property values, types and min/max for the unverified signs and units"
+  "what": "the full dash: three pages, pop-ups, bindings and extension scripts"
  }
 ]

@@ -1,13 +1,22 @@
 {
- "items": 681,
+ "items": 788,
+ "pages": [
+  {
+   "name": "Balance",
+   "items": 276
+  },
+  {
+   "name": "Tyres and car",
+   "items": 311
+  },
+  {
+   "name": "Brakes",
+   "items": 201
+  }
+ ],
  "report": {
-  "live": 372,
-  "static": 291,
-  "plugin": [
-   "best-lap dashed overlay on pedal graph",
-   "bottom-out / top-out counters"
-  ],
-  "charts": 28,
-  "images": 6
+  "live": 583,
+  "static": 600,
+  "charts": 4
  }
 }

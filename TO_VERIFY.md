@@ -194,3 +194,61 @@ Checked in SimHub's real web client while the user was driving (a fresh client, 
 
 ## W. Pitch and roll drawn at 1x (user, 2026-11-02: it "looks goofy going over a little rock", the car looks about to take off)
 `TMS_GEO.pitchX` and `rollX` went from 10 and 6 to 1: the side and rear cars now turn by the true pitch and roll. The `maxDraw` clamp (25 degrees) stays and is never reached at 1x outside a crash. The labels say `(1x)`. Rendered in SimHub's real client with the game closed (681 items, 0 exceptions); how the cars look while driving is for the user to judge.
+
+## X. Performance of 1.1 (read off the self-check line while driving)
+
+- [x] The line says `SHARED n` (the script variables are shared between formulas in SimHub 9.12.9). Read in SimHub's own web client with no game running: `SHARED 113` and `SHARED 118`. If it ever says `PRIVATE`, 1.1 only gains from the refresh intervals.
+- [x] `slow` is about 1.0/s (a minimum update interval really skips the evaluation). Read with no game running: `slow 0.9/s` against `pass 10/s`.
+- [x] `hidden` is 0.0/s (formulas of hidden items are not evaluated), which makes paging worthwhile. Read with no game running: `hidden 0.0/s`.
+- [ ] `pass` (how often SimHub runs a never-throttled formula) while driving. With no game it was 10/s (the idle tick); the in-game value is not known yet.
+- [ ] 1.1 feels smoother than 1.0.0 on the same car and track. If not, the cause is probably not the formulas: see the checks at the end of `docs/notes/PERFORMANCE.md`.
+
+## Y. Three pages in 1.2 (check while driving)
+
+- [x] The screen-switch action works and the formulas of a screen that is not shown do not run (SimHub 9.12.9, test dash, no game running; the owner also flipped the test dash with a wheel button).
+- [x] All three pages of `TelemetryMasterSuite_v1_2` render in SimHub's own web client (758 items, no exceptions), the pump runs on pages 2 and 3 (`pass 10/s` on every page, no game running), and `hidden` stays 0.0/s.
+- [ ] A wheel button mapped to "Show next dash screen" and "Show previous dash screen" flips the three pages of the real dash on the second monitor, in the order Drive, Tyres and car, Braking and logs, and wraps around.
+- [ ] Counters keep counting on a page you are not looking at: drive a lap on page 1 with page 3 never shown, then look at page 3 (lock-ups, ABS hits, peak brake, disc peaks, event and corner log) and at the sector times on page 1 after a lap spent on page 2.
+- [ ] The traces (brake trace, tyre core temperature, suspension travel) continue from where they stopped when a page comes back, with no blank chart (read from SimHub's chart code, not yet seen).
+- [ ] `pass` while driving on each page, and whether 1.2 feels smoother than 1.1 (record the `PERF` line of each page).
+- [x] Panels enlarged to fill each page (1.18 to 1.64 times); all three pages render in SimHub's client with no exceptions.
+- [ ] Is the enlarged layout right (which panel is biggest on each page, the gap at the bottom of page 1 under the slip view and the empty right column of page 3)?
+- [ ] Read the dash in the real conditions (sun, speed, 500 ms): what can you take in? `docs/notes/DRIVER_REVIEW.md` predicts almost nothing below about 40 px font; the glance page it proposes is a decision, not built.
+
+## Z. The glance page in 1.3 (check while driving)
+
+- [x] All four pages of `TelemetryMasterSuite_v1_3` render in SimHub's own client with no exceptions (789 / 809 items); the library keys behind the glance page are unit tested (`test/glance.test.js`).
+- [ ] Read page 1 in the real conditions (sun, speed, half a second). What do you get, in what order? Is anything misplaced or too small?
+- [ ] Shift bar: the 70% start, the taller stage from 90% and the flash from 94.5% of max rpm suit the car (AC and ACC report `MaxRpm`; per gear thresholds are not built).
+- [ ] Delta bar scale (half a second) and the colour/side convention (yellow, right = slower).
+- [ ] Alerts: 125 C oil, 108 C water, 750 C brakes, fuel two laps: do they fire when they should and not otherwise? Temperature units (`TemperatureUnit`) and the disc temperature properties are inferred.
+- [ ] TC and ABS blocks: 0.4 s before they show is right for how you drive.
+- [ ] Lock-up alert wheel names and the 1.5 s hint; brake-bias flash (`BrakeBias` changes by 0.05 or more).
+- [ ] Pit lane / below 60 km/h: the fuel to add shows. A pit-limiter or pit-lane flag property would allow a proper pit overlay (not checked in SimHub's property list).
+- [ ] ACC gaps (arrow up / down) and the AC fallback (lap, last lap).
+
+## AA. The three-page side panel in 1.4 (check while driving)
+
+Checked offline or in SimHub's client:
+- [x] All three pages of `TelemetryMasterSuite_v1_4` render in SimHub's own client with no exceptions (785 items, 582 formulas), and the tests pass (`npm test`; `test/glance.test.js` covers the pop-up, balance, load, suspension and event logic with a mock clock).
+- [x] Run against the last frame of a real Assetto Corsa session (GT-M Adonis V8 Evo, left held by SimHub after the game closed): the numbers, bars, plates, the beta number with its arrow, the `SLIDE` word, the disc cards and the tyre cards all fill in; the glyphs ▲ ▼ ● ◄ draw. This found five defects, all fixed (CHANGELOG 1.4.0).
+- [x] With the game closed `DataCorePlugin.GameRunning` is false (or 0): the pop-ups disappear, as the library expects.
+
+Not checked while driving (everything below is a default or an inference):
+- [ ] **Colour (added after "too monotone"):** do the cluster colours help the eye find things, and is anything too loud? In real sun, which pairs look alike (pink and red, amber and yellow, mint and green, cyan and blue)? The palette is `TMS_SC` in the library and `C` in `build/build_dash.js` (a test keeps them equal), so one edit changes it.
+- [ ] **Flashing:** about 3 Hz for what needs you now (balance 2 degrees out, slide, slip 8 degrees, tyre over 105 C, pressure 1.2 psi high, disc over 750 C, bottoming, a lock-up, the newest event), 4 Hz for TC and ABS, 2 Hz for a new alert. Too much, too little, which ones would you drop? `critMs` (170 ms phase) is in `TMS_GL`.
+- [ ] The g-meter on page 1 (rings 1 g and 1.5 g, left g puts the dot left, accelerating puts it up; the sign of `AccG` is inferred) and the last lock-up and last slide panel: are they what you wanted in that half, or would you rather have something else there (brake bias, the lap's peak g, the newest event list)?
+- [ ] **Load:** this dash has about 582 formulas (2,500 to 3,500 runs a second on a page in the model, about the cost of the 1.1 dash). If SimHub lags, the `PERF` line and the page with the most flashing (Tyres and car) are where to look; the flash kinds run at 50 ms.
+- [ ] With the game closed (seen in SimHub's client with the held frame of a spin): the pop-ups are gone, plates are steady, the balance says `--` (20 degrees of body slip or more).
+- [ ] The glyphs ◐ (TRANSITION), ▦ (chequered) and » (blue) draw in SimHub's client (the others were seen).
+- [ ] **Signs:** the beta arrow (positive beta, nose left of travel, tail swings right, arrow right); steering right is up in the trace; the g-g dot (left lateral g puts the dot left, acceleration puts it up); `SuspensionTravel` rising with compression; `AccG` axis order (lateral first, longitudinal third).
+- [ ] **Balance:** front minus rear absolute slip, always live from 20 km/h (no corner needed, so on a straight it should read neutral); neutral within 0.7 degrees (clears at 0.5); SPIN from 20 degrees of body slip; in AC the slip angles are estimated (`EST`). Does the verdict agree with how the car feels, does it flicker on straights (the slip angles there are tiny), and is 20 km/h the right start?
+- [ ] **Heading and trajectory arrows** (inside the g-meter on page 1): white is the heading (nose), yellow the trajectory (direction of travel), turned by beta times 3 (`headK`). Check the direction: a positive beta (nose left of travel) turns the yellow arrow clockwise, so in a right-hand slide with the tail out to the left it should lean right of the white one. Is x3 the right amount?
+- [ ] **Slide pop-up:** 6 degrees for 200 ms fires when the car really steps out, not on kerbs or in a fast drifty corner.
+- [ ] **Flags:** every flag the game raises reaches `DataCorePlugin.GameData.Flag_Name` under the name the library tests for (yellow, blue, white, red, black, chequered; chequered is tested before red because its name contains it). The timings (yellow flashes twice, 4 s block, chip, re-pop every 10 s; blue 4 s; green 1.5 s after yellow or red; black 6 s flashing then steady with the edge strip; chequered 6 s; white 3 s) are the designer's, not measured. Red hides the alert and takes the top 200 px.
+- [ ] **Alerts:** oil 130 / 125, water 105 / 100, brakes 750 / 650, tyre core 105 / 100, hot pressure 0.7 / 0.5 psi above the target, fuel two laps, each with its own hold time; the rotation every 2 s when there are several; the flashing for 3 s on a new one.
+- [ ] **Suspension:** ACC's `StaticInfo.SuspensionMaxTravel01..04` is read when it exists (not seen in this SimHub's property list); without it, as in AC, the bars show the travel inside the range seen so far (at least 20 mm wide) and no bottoming is counted. Is the AC bar useful, or would you rather have a fixed stroke per car?
+- [ ] **Load bars** are scaled to each tyre's own peak (it rises quickly and fades slowly); the tick is a slow average (about half a minute at 60 Hz). Does the bar show weight transfer clearly, and is the F / R and L / R split the right pair of numbers?
+- [ ] **Size and sun:** live numbers 40 px and up, labels 32 px, lines 6 px, white and yellow only, plates and glyphs for state. Is everything on page 1 readable at a glance at the real distance and in real sun? `node tools/viewing_geometry.js` holds the arithmetic; the sun model is assumed.
+- [ ] **Page flow:** three pages, any page at most one press away; no way to jump to page 1 or to change page by itself (SimHub cannot).
+- [ ] The `PERF` line at the bottom right says `SHARED n` (the counters keep running on the pages you are not looking at); `PRIVATE` would mean SimHub is not sharing the script variables.

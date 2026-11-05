@@ -1,6 +1,6 @@
 {
   "name": "telemetry-master-suite",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Slip-angle-first telemetry dashboard for SimHub (Assetto Corsa Competizione and Assetto Corsa), generated from a script, with its tests.",
   "author": "JustTriedfor",
   "private": true,
@@ -8,5 +8,7 @@
     "test": "node test/run.js",
     "check:es5": "node test/es5.js"
   },
-  "devDependencies": { "acorn": "8.15.0" }
+  "devDependencies": {
+    "acorn": "8.15.0"
+  }
 }
