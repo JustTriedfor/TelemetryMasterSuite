@@ -25,7 +25,7 @@ A SimHub dashboard for a second monitor (1920 x 1080) that puts **body slip angl
 
 `dash/out/TMSProbe.simhubdash` is a second, separate dash that prints raw property values, their types and their min/max, so that unverified assumptions can be settled with one screenshot. It is a diagnostic tool, not part of the dash.
 
-## Pages
+## Pages/Dashboards
 
 `TelemetryMasterSuite_v1_4` is a **side panel**. It shows what the main dash and the DDU do not (balance, slip angle, tyre and brake detail, suspension, logs) and nothing they already show (speed, gear, rpm, delta, laps, fuel, position). Three pages, switched with the wheel's next / previous screen actions; the page name and three squares (the current one filled) are at the top right. Every live number is 40 px or bigger, every label 32 px or bigger, every line 6 px or thicker (see [docs/notes/DESIGN_1_4.md](docs/notes/DESIGN_1_4.md)).
 
